@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KatagrMa マネジメントスケジュール診断</title>
+<style>
+  :root{
+    --ink:#12211F;--deep:#0F6E56;--teal:#1D9E75;--mist:#E1F5EE;--paper:#FFFFFF;--soft:#F4F7F5;
+    --line:#DCE4E1;--muted:#5F6B68;--amber:#BA7517;--amberbg:#FAEEDA;--green:#3B6D11;--greenbg:#EAF3DE;
+    --shadow:0 1px 3px rgba(15,110,86,.08);--blue:#185FA5;--bluebg:#E6F1FB;--purple:#534AB7;--purplebg:#EEEDFE;
+    --red:#B4262B;--redbg:#FBE9E9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:var(--ink);background:var(--soft);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 20px 80px}
+  header{margin-bottom:14px}
+  .brand{font-size:12px;font-weight:700;letter-spacing:.15em;color:var(--teal);text-transform:uppercase}
+  h1{font-size:24px;font-weight:700;margin-top:6px}
+  .lead{color:var(--muted);font-size:14px;margin-top:8px}
+  /* タブ */
+  .tabs{display:flex;gap:8px;margin-top:18px;border-bottom:1px solid var(--line)}
+  .tab{font-family:inherit;font-size:14px;font-weight:700;padding:10px 18px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab.active{color:var(--deep);border-bottom-color:var(--deep)}
+  .tab:hover{color:var(--ink)}
+  .steps{display:flex;gap:8px;margin:22px 0 8px}
+  .stepdot{flex:1;height:5px;border-radius:3px;background:var(--line);transition:background .25s}
+  .stepdot.done{background:var(--teal)}.stepdot.active{background:var(--deep)}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:var(--shadow);margin-top:18px}
+  .qnum{font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.08em}
+  .qtitle{font-size:19px;font-weight:700;margin:4px 0 4px}
+  .qhint{font-size:13px;color:var(--muted);margin-bottom:18px}
+  .opts{display:grid;gap:12px}
+  .opt{position:relative;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;font-family:inherit;color:var(--ink)}
+  .opt:hover{border-color:var(--teal);background:var(--mist)}
+  .opt.sel{border-color:var(--deep);background:var(--mist);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  .opt.disabled{opacity:.4;cursor:not-allowed}
+  .opt.disabled:hover{border-color:var(--line);background:var(--paper)}
+  .opt .ot{font-size:15px;font-weight:700}
+  .opt .od{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .prio{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;background:var(--deep);color:#fff;font-size:13px;font-weight:700;display:none;align-items:center;justify-content:center}
+  .opt.sel .prio{display:flex}
+  .lvblock{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;background:var(--paper)}
+  .lvhead{font-size:15px;font-weight:700;margin-bottom:4px}
+  .lvsub{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .lvopts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  @media(max-width:620px){.lvopts{grid-template-columns:1fr}}
+  .lvopt{text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-family:inherit;color:var(--ink);transition:all .15s}
+  .lvopt:hover{border-color:var(--teal);background:var(--mist)}
+  .lvopt.sel{border-color:var(--deep);background:var(--mist)}
+  .lvopt .lt{font-size:13.5px;font-weight:700}
+  .lvopt .ld{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+  select.month,input.txt{width:100%;font-family:inherit;font-size:15px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink)}
+  select.month{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235F6B68' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+  select.month:focus,input.txt:focus{outline:none;border-color:var(--deep);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  textarea.txt{width:100%;font-family:inherit;font-size:15px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);resize:vertical;line-height:1.65;min-height:96px}
+  textarea.txt:focus{outline:none;border-color:var(--deep);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  .memoblock{background:var(--mist);border:1px solid #9FE1CB;border-radius:12px;padding:14px 16px;margin-bottom:16px}
+  .memoblock .mt{font-size:12px;font-weight:700;color:var(--deep);letter-spacing:.05em}
+  .memoblock .mbody{font-size:14px;margin-top:6px;line-height:1.7;white-space:pre-wrap}
+  .memocell{max-width:240px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nav{display:flex;justify-content:space-between;margin-top:22px;gap:12px}
+  .btn{font-family:inherit;font-size:14px;font-weight:700;padding:11px 22px;border-radius:10px;cursor:pointer;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);transition:all .15s}
+  .btn:hover{background:var(--soft)}
+  .btn.primary{background:var(--deep);color:#fff;border-color:var(--deep)}.btn.primary:hover{background:#0c5d49}
+  .btn:disabled{opacity:.4;cursor:not-allowed}.btn.ghost{border:none;color:var(--muted);background:transparent}
+  .hidden{display:none}
+  .selhint{font-size:12.5px;color:var(--deep);background:var(--mist);border:1px solid #9FE1CB;border-radius:10px;padding:10px 14px;margin-bottom:16px;line-height:1.5}
+  .result-head{background:var(--deep);color:#fff;border-radius:16px;padding:24px 26px;margin-top:18px}
+  .result-head .rlabel{font-size:12px;font-weight:700;letter-spacing:.1em;color:#9FE1CB;text-transform:uppercase}
+  .result-head h2{font-size:21px;font-weight:700;margin-top:6px}
+  .result-head .rsub{font-size:13.5px;color:#CFEDE2;margin-top:8px;line-height:1.6}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;margin-right:8px;margin-top:10px}
+  .badge.seg{background:#9FE1CB;color:#04342C}.badge.lvl{background:rgba(255,255,255,.16);color:#fff}
+  .section-t{font-size:13px;font-weight:700;color:var(--deep);letter-spacing:.05em;margin:26px 0 4px}
+  .first{background:var(--greenbg);border:1.5px solid #C0DD97;border-radius:14px;padding:20px;margin-top:12px}
+  .first .ft{font-size:12px;font-weight:700;color:var(--green);letter-spacing:.05em}
+  .wlist{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  .witem{display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:start;background:#fff;border:1px solid #C0DD97;border-radius:10px;padding:10px 12px}
+  .wmonth{font-size:14px;font-weight:700;color:var(--green);text-align:center;padding-top:2px}
+  .wtitle{font-size:14px;font-weight:700;color:var(--ink);line-height:1.4}
+  .wtemp{font-size:11.5px;color:var(--green);margin-top:4px;font-weight:700}
+  .timeline{margin-top:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .trow{display:grid;grid-template-columns:60px 1fr;border-top:1px solid var(--line)}
+  .trow:first-child{border-top:none}.trow.isfirst{background:var(--greenbg)}
+  .tmonth{padding:16px 8px 14px;font-weight:700;font-size:15px;text-align:center;border-right:1px solid var(--line);display:flex;align-items:flex-start;justify-content:center;color:var(--deep)}
+  .trow.isfirst .tmonth{color:var(--green)}
+  .tbody{padding:10px 14px}
+  .titem{padding:8px 0;border-top:1px dashed var(--line)}.titem:first-child{border-top:none}
+  .tfunc{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;margin-right:8px;vertical-align:middle}
+  .tfunc.f0{background:var(--mist);color:var(--deep)}.tfunc.f1{background:var(--bluebg);color:var(--blue)}.tfunc.f2{background:var(--purplebg);color:var(--purple)}
+  .titem .tt{font-size:14px;font-weight:700;display:inline}
+  .titem .td{font-size:12px;color:var(--muted);margin-top:3px}
+  .titem .ttemp{display:inline-block;margin-top:6px;font-size:11.5px;color:var(--deep);background:var(--mist);border-radius:6px;padding:2px 8px;font-weight:700}
+  .firstflag{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--green);border-radius:5px;padding:2px 7px;margin-left:6px}
+  .note{font-size:12.5px;color:var(--muted);margin-top:16px;padding:14px 16px;background:var(--soft);border-radius:12px;line-height:1.6}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted);align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .special{background:var(--amberbg);border:1px solid #FAC775;border-radius:14px;padding:20px;margin-top:18px}
+  .special .st{font-size:15px;font-weight:700;color:var(--amber)}
+  .special .sd{font-size:13.5px;color:#6b4a10;margin-top:6px;line-height:1.6}
+  .restart{margin-top:24px;text-align:center}
+  /* 保存パネル */
+  .save{background:var(--paper);border:1.5px solid var(--deep);border-radius:16px;padding:22px;margin-top:24px}
+  .save .stt{font-size:15px;font-weight:700;color:var(--deep)}
+  .save .ssub{font-size:12.5px;color:var(--muted);margin:4px 0 14px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  @media(max-width:620px){.frow{grid-template-columns:1fr}}
+  .flab{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px;display:block}
+  .req{color:var(--red);font-size:11px;margin-left:4px}
+  .savemsg{font-size:13px;margin-top:12px;padding:10px 14px;border-radius:10px;line-height:1.5;display:none}
+  .savemsg.ok{display:block;background:var(--greenbg);border:1px solid #C0DD97;color:var(--green)}
+  .savemsg.err{display:block;background:var(--redbg);border:1px solid #E7A9AB;color:var(--red)}
+  .savemsg.info{display:block;background:var(--soft);border:1px solid var(--line);color:var(--muted)}
+  /* 一覧 */
+  .listbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap}
+  .listbar .lcount{font-size:13px;color:var(--muted)}
+  .searchbox{flex:1;min-width:180px}
+  table.rec{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table.rec th,table.rec td{padding:10px 12px;text-align:left;border-top:1px solid var(--line);vertical-align:top}
+  table.rec thead th{background:var(--soft);font-size:12px;color:var(--muted);border-top:none;white-space:nowrap}
+  table.rec tbody tr:hover{background:var(--mist)}
+  table.rec .hj{font-weight:700}
+  .tag{display:inline-block;font-size:11px;font-weight:700;background:var(--mist);color:var(--deep);border-radius:5px;padding:2px 7px;margin:1px 3px 1px 0}
+  .rowbtn{font-family:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);color:var(--deep);cursor:pointer;white-space:nowrap}
+  .rowbtn:hover{background:var(--mist);border-color:var(--teal)}
+  .empty{text-align:center;color:var(--muted);font-size:14px;padding:40px 20px}
+  .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+  .sumcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .sumcard .sh{font-size:12px;font-weight:700;color:var(--muted)}
+  .sumbar{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px}
+  .sumbar .bl{flex:0 0 auto;width:78px}
+  .sumbar .bt{flex:1;height:10px;background:var(--soft);border-radius:5px;overflow:hidden}
+  .sumbar .bt>span{display:block;height:100%;background:var(--teal)}
+  .sumbar .bn{flex:0 0 auto;width:28px;text-align:right;font-weight:700;color:var(--deep)}
+  /* モーダル */
+  .modal{position:fixed;inset:0;background:rgba(18,33,31,.5);display:none;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:50}
+  .modal.show{display:flex}
+  .modalbox{background:var(--soft);border-radius:18px;max-width:860px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .modalhead h3{font-size:17px;font-weight:700}
+  .closex{font-family:inherit;font-size:14px;font-weight:700;border:none;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+  /* クリックできるテンプレ */
+  .ttemp.clk,.wtemp.clk{cursor:pointer;transition:all .12s}
+  .ttemp.clk:hover{background:#c9ecdf}
+  .wtemp.clk:hover{text-decoration:underline}
+  #tmodal .modalbox{max-width:640px;background:var(--paper)}
+  .tpurpose{font-size:13.5px;color:var(--muted);line-height:1.7;margin-bottom:14px}
+  .titems{list-style:none;padding:0;margin:0}
+  .titems li{position:relative;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;font-size:14px;background:var(--soft)}
+  .titems li:before{content:"✓";position:absolute;left:12px;top:9px;color:var(--teal);font-weight:700}
+  .tkind{display:inline-block;font-size:11px;font-weight:700;background:var(--mist);color:var(--deep);border-radius:6px;padding:3px 10px;margin-bottom:12px}
+  .tdraft{font-size:11.5px;color:var(--amber);background:var(--amberbg);border:1px solid #FAC775;border-radius:8px;padding:8px 12px;margin-top:14px;line-height:1.5}
+  .qitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--soft)}
+  .qcat{font-size:12.5px;font-weight:700;color:var(--deep)}
+  .qq{font-size:13.5px;margin-top:3px;line-height:1.6}
+  .qa{font-size:12px;color:var(--muted);margin-top:6px;background:var(--paper);border:1px dashed var(--line);border-radius:6px;padding:5px 8px;line-height:1.5}
+  .tsrc{display:inline-block;margin-top:16px;text-decoration:none}
+  #tmodal .modalbox{max-height:88vh;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">KatagrMa Customer Success</div>
+    <h1>マネジメントスケジュール診断</h1>
+    <p class="lead">設問に答えると、その法人に合った「1年間のマネジメントプラン」と、契約開始月から踏み出す「半年の第一歩（ライトサクセス）」が決まります。結果は法人ごとに保存でき、チームで蓄積・比較できます。</p>
+    <div class="tabs">
+      <button class="tab active" id="tab-diag">診断する</button>
+      <button class="tab" id="tab-list">蓄積一覧・比較</button>
+    </div>
+  </header>
+
+  <!-- 診断ビュー -->
+  <div id="diag-view">
+    <div class="steps" id="steps"></div>
+    <div id="quiz"></div>
+    <div id="result" class="hidden"></div>
+  </div>
+
+  <!-- 一覧ビュー -->
+  <div id="list-view" class="hidden"></div>
+</div>
+
+<!-- プラン再表示モーダル -->
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <div class="modalhead"><h3 id="modal-title">保存されたプラン</h3><button class="closex" id="modal-close">閉じる</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- テンプレート内容モーダル -->
+<div class="modal" id="tmodal">
+  <div class="modalbox">
+    <div class="modalhead"><h3 id="tmodal-title">テンプレート</h3><button class="closex" id="tmodal-close">閉じる</button></div>
+    <div id="tmodal-body"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   設定：Apps Script ウェブアプリのURLとトークンをここに入れる
+   （README.md の手順3で取得したURLを貼り付け）
+   ============================================================ */
+const CONFIG={
+  API_URL:"https://script.google.com/a/macros/katagrma.co.jp/s/AKfycbz_-oK-iaXttqhRDLoX9xJ2-6qBtEgO0dsXzxRb-B3ANVGnNjgsLkrtEt7Wxj43UN8W/exec",
+  TOKEN:"kata-ls-8995de7ce34c"    // Code.gs の TOKEN と必ず一致させる（設定済み）
+};
+
+const MONTHS=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+
+const MENDAN_IKUSEI={
+  gakki:[
+    {m:4,title:"新入・異動職員の面談",desc:"早期離職を防ぐための面談",template:"【新年度】役割・体制確認"},
+    {m:4,title:"1学期目標設定面談",desc:"目標設定面談",template:"【目標】設定・振り返り",goalM:true},
+    {m:7,title:"1学期の振り返り・2学期に向けた面談",desc:"1学期の振り返りと2学期に向けた面談",template:"【目標】設定・振り返り",goalM:true},
+    {m:11,title:"2学期の振り返り・3学期に向けた面談",desc:"2学期の振り返りと3学期に向けた面談",template:"【目標】設定・振り返り",goalM:true},
+    {m:11,title:"意向調査（必要に応じて）",desc:"次年度の勤務継続・意向調査",template:"【調査】意向調査"},
+    {m:2,title:"3学期の振り返り",desc:"3学期の振り返り",template:"【目標】設定・振り返り",goalM:true},
+  ],
+  hanki:[
+    {m:4,title:"新入・異動職員の面談",desc:"早期離職を防ぐための面談",template:"【新年度】役割・体制確認"},
+    {m:5,title:"目標設定面談",desc:"全員と目標設定面談",template:"【目標】設定・振り返り",goalM:true},
+    {m:9,title:"前期の振り返り・後期に向けた面談",desc:"前期の振り返りと後期に向けた面談",template:"【目標】設定・振り返り",goalM:true},
+    {m:11,title:"意向調査",desc:"次年度の勤務継続・意向調査",template:"【調査】意向調査"},
+    {m:2,title:"後期の振り返り・次年度に向けた面談",desc:"後期の振り返りと次年度に向けた面談",template:"【目標】設定・振り返り",goalM:true},
+  ],
+  shokyu:[
+    {m:4,title:"新入・異動職員のみの面談",desc:"早期離職を防ぐ面談（対象を絞る）",template:"【新年度】役割・体制確認"},
+    {m:8,title:"半年の振り返り面談",desc:"半年の振り返り",template:"【通常】振り返り・改善"},
+    {m:10,title:"次年度の体制づくりを見据えた面談",desc:"次年度に向けた希望の確認",template:"【調査】次年度希望調査"},
+    {m:12,title:"意向調査（面談は必要な場合のみ）",desc:"異動・退職を希望する職員のみ",template:"【調査】意向調査"},
+    {m:2,title:"1年間の振り返り面談",desc:"1年間の振り返り",template:"【通常】できたこと・気づき"},
+  ],
+};
+const MENDAN_MOTIV=[
+  {m:4,title:"新入・異動職員の面談",desc:"早期離職を防ぐ面談",template:"【新年度】役割・体制確認"},
+  {m:6,title:"1on1の実施",desc:"対話・サポートの1on1",template:"【1on1】対話・サポート"},
+  {m:9,title:"1on1の実施",desc:"対話・サポートの1on1",template:"【1on1】対話・サポート"},
+  {m:11,title:"意向調査（面談は必要な場合のみ）",desc:"異動・退職を希望する職員のみ",template:"【調査】意向調査"},
+  {m:2,title:"1年間の振り返り面談",desc:"1年間の振り返り",template:"【通常】できたこと・気づき"},
+];
+const MENDAN_KOMARI=[
+  {m:4,title:"新入・異動職員の面談",desc:"早期離職を防ぐ面談",template:"【新年度】役割・体制確認"},
+  {m:6,title:"困りごとのヒアリング面談",desc:"改善したいこと・困っていることのヒアリング",template:"【通常】相談・要望"},
+  {m:9,title:"1on1の実施",desc:"対話・サポートの1on1",template:"【1on1】対話・サポート"},
+  {m:11,title:"意向調査（面談は必要な場合のみ）",desc:"異動・退職を希望する職員のみ",template:"【調査】意向調査"},
+  {m:2,title:"1年間の振り返り面談",desc:"1年間の振り返り",template:"【通常】できたこと・気づき"},
+];
+const SELFEVAL={
+  gakki:[
+    {m:7,title:"1学期の振り返り",desc:"職員回答後、フィードバックコメントの記入",template:"自己評価（各職種30項目〜）"},
+    {m:9,title:"人権擁護のセルフチェック",desc:"人権擁護のセルフチェック",template:"人権擁護セルフチェック"},
+    {m:11,title:"2学期の振り返り",desc:"職員回答後、フィードバックコメントの記入",template:"自己評価（各職種30項目〜）"},
+    {m:2,title:"3学期（1年間）の振り返り",desc:"第三者評価視点の入力、フィードバック",template:"自己評価（各職種30項目〜）"},
+  ],
+  hanki:[
+    {m:9,title:"前期の振り返り",desc:"前期の自己評価",template:"自己評価（各職種30項目）"},
+    {m:12,title:"人権擁護のセルフチェック",desc:"人権擁護のセルフチェック",template:"人権擁護セルフチェック"},
+    {m:2,title:"後期の振り返り",desc:"後期の自己評価",template:"自己評価（各職種30項目）"},
+  ],
+};
+const GOAL={
+  gakki:[
+    {m:4,title:"1学期目標設定",desc:"1学期の目標設定面談",template:"目標設定・振り返り"},
+    {m:7,title:"1学期目標の振り返りと2学期目標設定",desc:"振り返り面談",template:"目標設定・振り返り"},
+    {m:11,title:"2学期目標の振り返りと3学期目標設定",desc:"振り返り面談",template:"目標設定・振り返り"},
+    {m:2,title:"3学期の振り返り",desc:"振り返りコメントの入力",template:"目標振り返り"},
+  ],
+  hanki:[
+    {m:5,title:"前期目標設定",desc:"前期の目標設定面談",template:"目標設定・計画"},
+    {m:9,title:"前期目標振り返り・後期目標設定",desc:"振り返り入力依頼、確認者フィードバック、後期設定面談",template:"目標振り返り・設定"},
+    {m:2,title:"後期目標振り返り",desc:"振り返り入力依頼、面談、確認者フィードバック",template:"目標振り返り"},
+  ],
+  ichinen:[
+    {m:5,title:"年間目標設定",desc:"年間の目標設定面談",template:"目標設定・計画"},
+    {m:10,title:"中間振り返り",desc:"振り返り入力依頼、確認者フィードバック",template:"目標中間振り返り"},
+    {m:2,title:"目標振り返り",desc:"振り返り入力依頼、確認者フィードバック",template:"目標振り返り"},
+  ],
+};
+const SELFEVAL_TEMPLATE_NOTE="自己評価のテンプレ項目数：負担を抑えたい→各職種30項目／マネジメント職も評価→＋マネジメント職用／担当別に分けたい→未満児・以上児で分割。";
+
+/* ===== テンプレートの中身（テンプレ名クリックで表示）=====
+   面談テンプレは実際の設問（[項目名, 問いかけ, 回答案]）。自己評価は種類が多いため一覧＋リンク。
+   元データ：
+     面談   https://docs.google.com/spreadsheets/d/1KMjQB6_V7Epqb-cUtStPbKyfUXs3f75ML9gznN6Og3g/edit
+     自己評価 https://docs.google.com/spreadsheets/d/1ZEukhqSE0-eMweF12xWdOI4rFxRVGO6NC7dqgpx2gcU/edit
+   ※ 元シートを更新したら、ここも合わせて更新してください。 */
+const TMPL_MENDAN_URL="https://docs.google.com/spreadsheets/d/1KMjQB6_V7Epqb-cUtStPbKyfUXs3f75ML9gznN6Og3g/edit";
+const TMPL_SELFEVAL_URL="https://docs.google.com/spreadsheets/d/1ZEukhqSE0-eMweF12xWdOI4rFxRVGO6NC7dqgpx2gcU/edit";
+const C_SHINSHIN="【選択】1.良好・不安なし 2.普通 3.疲れ・不安あり 4.かなり疲れている";
+const Q_SHINSHIN="最近の体調や、日々の生活の中での疲労度、睡眠の状況などについて教えてください。";
+const C_JUJITSU="【選択】1.充実感が勝る 2.半々 3.課題感・大変さが勝る 4.余裕がない";
+const TEMPLATES={
+  "【通常】振り返り・改善":{kind:"面談",purpose:"日常業務の振り返りと改善点を確認する内容。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["仕事の充実度","現在の業務における「充実感」と「課題感（負担）」の比重について、ご自身の感覚を教えてください。",C_JUJITSU],
+    ["子どもの成長","子どもたちとの関わりの中で「成長」を感じ、感銘を受けたエピソードを共有してください。（食事・健康・遊びなど、専門職としての視点からで構いません）","【記述】"],
+    ["チームワーク・感謝","一緒に働く職員に対して、支援や協力に感謝した場面があれば教えてください。（具体的な相手や内容があれば併せてご記入ください）","【記述】"],
+    ["業務の工夫","子どもたちへの関わりや、自身の役割を果たす中で、現在、特に注力していることや工夫していることについて教えてください。","【記述】"],
+    ["周囲との関わり","日々の連携や保護者対応において、判断に迷った場面や、対応に工夫が必要だと感じている事項があれば共有してください。","【記述】"],
+    ["課題と提案","現在、業務をより円滑に進める上で、課題と感じていることや改善の余地があると思う点について教えてください。","【記述】"],
+    ["今後の展望・その他","現在の働き方や今後のキャリアについて、その他この機会に共有・相談しておきたい事項があれば自由にご記入ください。","【記述】"],
+  ]},
+  "【通常】できたこと・気づき":{kind:"面談",purpose:"成功体験や成長、気づきを共有する内容。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["仕事の充実度","現在の業務における「充実感」と「課題感（負担）」の比重について、ご自身の感覚を教えてください。",C_JUJITSU],
+    ["子どもの成長","子どもたちとの関わりの中で「成長」を感じ、感銘を受けたエピソードを共有してください。（食事・健康・遊びなど、専門職としての視点からで構いません）","【記述】"],
+    ["成長・やりがい","自分なりに工夫して手応えを感じたこと（または今後自信に繋げたいこと）はありますか？","【記述】"],
+    ["チームワーク・感謝","一緒に働く職員に対して、最近「助かったな」「ありがとう」と思ったことはありますか？ 具体的な相手やエピソードがあれば教えてください。","【記述】"],
+    ["業務の工夫","子どもたちへの関わりや、自身の役割を果たす中で、現在、特に注力していることや工夫していることについて教えてください。","【記述】"],
+    ["良い報告","私（面談者）に対して、今ぜひ共有しておきたい「良いニュース」はありますか？","【記述】成果や嬉しかったことなど自由に"],
+    ["今後の展望・その他","現在の働き方や今後のキャリアについて、その他この機会に共有・相談しておきたい事項があれば自由にご記入ください。","【記述】"],
+  ]},
+  "【通常】相談・要望":{kind:"面談",purpose:"業務や職場環境に関する相談・要望を共有する内容。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["課題と提案","現在、業務をより円滑に進める上で、課題と感じていることや改善の余地があると思う点について教えてください。","【記述】"],
+    ["役割の悩み","自分の役割や支援の仕方に悩んでいること、または負担を感じている場面はありますか？","【記述】"],
+    ["周囲との関わり","日々の連携や保護者対応において、判断に迷った場面や、対応に工夫が必要だと感じている事項があれば共有してください。","【記述】"],
+    ["役割の納得度","現在のご自身の役割や業務内容について、園からの期待とご自身の認識にズレや戸惑いを感じている部分はありますか。","【選択】1.明確で納得している 2.概ね理解している 3.少し不明確・迷いがある 4.役割が重すぎる、または合っていないと感じる"],
+    ["役割の納得度","前問で 3.少し不明確・迷いがある／4.役割が重すぎる…に該当する場合は、その内容を具体的にご記入ください。","【記述】"],
+    ["強みと提案","自分の得意なことや現在の取り組みを活かして、園全体の保育の質や環境をさらに高めるために「やってみたいこと」があれば教えてください。","【記述】"],
+    ["面談者への要望","私（面談者）に対して「こう動いてほしい」「もっとこうしてほしい」という要望はありますか？","【記述】"],
+    ["今後の展望・その他","現在の働き方や今後のキャリアについて、その他この機会に共有・相談しておきたい事項があれば自由にご記入ください。","【記述】"],
+  ]},
+  "【新年度】役割・体制確認":{kind:"面談",purpose:"新年度の役割や体制への適応状況、重点事項や課題を確認する内容。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["業務の習熟","新年度が始まり、日々の業務にも少しずつ慣れてきた中で、現時点で手応えややりがいを感じていることを教えてください。","【記述】"],
+    ["チームワーク・感謝","日々の業務の中で、ペアやチームの職員に対して「助かった」「感謝したい」と感じた具体的なエピソードがあれば共有してください。","【記述】"],
+    ["重点項目と取り組み","今年度、ご自身の役割（主担任・専門職等）において、特に注力したいことや、楽しみに感じている取り組みについて教えてください。","【記述】"],
+    ["課題と提案","新年度に伴う環境や役割の変化の中で、業務の進め方などについて現在、最も課題と感じていることを率直に教えてください。","【記述】"],
+    ["周囲との関わり","日々の連携や保護者対応において、判断に迷った場面や、対応に工夫が必要だと感じている事項があれば共有してください。","【記述】"],
+    ["役割の悩み","自分の役割や支援の仕方に悩んでいること、または負担を感じている場面はありますか？","【記述】"],
+    ["今後の展望・その他","現在の働き方や今後のキャリアについて、その他この機会に共有・相談しておきたい事項があれば自由にご記入ください。","【記述】"],
+  ]},
+  "【1on1】対話・サポート":{kind:"面談（1on1）",purpose:"悩みや課題、成長を支援する内容（新人・メンター・主任面談等）。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["仕事の充実度","今の仕事における「充実感」と「課題感（大変さ）」の比重はどのくらいですか？",C_JUJITSU],
+    ["1on1で話したいこと","今日の時間で、特に「ここを話したい」と思うテーマはありますか？","【複数選択】人間関係 / 仕事の進め方 / 保育の悩み / 最近の気づき / 心身の健康 / プライベートの相談 / その他"],
+    ["1on1で話したいこと","その具体的な内容を簡単に教えてください ※今は特にないという場合は、空欄のまま提出してください。","【記述】"],
+    ["周囲との関わり","日々の連携や保護者対応において、判断に迷った場面や、対応に工夫が必要だと感じている事項があれば共有してください。","【記述】"],
+    ["面談者への要望","私の立場であなたの力になれることがあれば教えてください。 ※今は特にないという場合は、空欄のまま提出してください。","【記述】"],
+  ]},
+  "【フォロー】成長・サポート":{kind:"面談（フォロー）",purpose:"成長や困りごとを確認し、継続的な支援につなげる内容（メンター面談等）。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["仕事の充実度","今の仕事における「充実感」と「課題感（大変さ）」の比重はどのくらいですか？",C_JUJITSU],
+    ["成長・やりがい","この期間で、自分なりに「これは頑張った！」「少しコツをつかめたかも」と思えた瞬間はありますか？","【記述】"],
+    ["周囲との関わり","日々の連携や、先輩・保護者とのやり取りにおいて、対応に迷ったり「これで大丈夫かな？」と不安な場面はありますか？","【記述】"],
+    ["面談者への要望","私の立場であなたの力になれることがあれば教えてください。 ※今は特にないという場合は、空欄のまま提出してください。","【記述】"],
+  ]},
+  "【目標】設定・振り返り":{kind:"面談／目標",purpose:"目標の設定や進捗・達成状況を確認する内容。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["仕事の充実度","今の仕事における「充実感」と「課題感（大変さ）」の比重はどのくらいですか？",C_JUJITSU],
+    ["成長・やりがい","自分なりに工夫して手応えを感じたこと（または今後自信に繋げたいこと）はありますか？","【記述】"],
+    ["チームワーク・感謝","一緒に働く職員に対して、最近「助かったな」「ありがとう」と思ったことはありますか？ 具体的な相手やエピソードがあれば教えてください。","【記述】"],
+    ["業務の工夫","担当業務において、今（あるいはこれから）自分なりに「ここはこだわってみたい」「こう工夫してみよう」と意識している具体的なポイントはありますか。","【記述】"],
+    ["目標と成長","今、優先的に磨きたいスキルや、身につけたい専門知識、あるいは「これができるようになりたい」という目標に対して、自分なりの手応えや進み具合はどう感じていますか。","【記述】"],
+    ["環境と課題","目標達成に向けて、現在の業務や職場環境において課題と感じていることや、改善が必要だと思う点を教えてください。","【記述】"],
+    ["今後の展望・その他","現在の働き方や今後のキャリアについて、その他この機会に共有・相談しておきたい事項があれば自由にご記入ください。","【記述】"],
+  ]},
+  "【目標】設定・振り返り（目標計画・管理対応）":{kind:"面談／目標計画・管理",purpose:"目標計画・管理機能に沿って目標設定・進捗管理を伴う内容。",source:TMPL_MENDAN_URL,items:[
+    ["振り返りの実施と登録","目標計画・管理へ、振り返り結果を登録お願いします。","【単一選択】更新しました"],
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["仕事の充実度","今の仕事における「充実感」と「課題感（大変さ）」の比重はどのくらいですか？",C_JUJITSU],
+    ["成長・やりがい","自分なりに工夫して手応えを感じたこと（または今後自信に繋げたいこと）はありますか？","【記述】"],
+    ["チームワーク・感謝","一緒に働く職員に対して、最近「助かったな」「ありがとう」と思ったことはありますか？ 具体的な相手やエピソードがあれば教えてください。","【記述】"],
+    ["業務の工夫","担当業務において、今（あるいはこれから）自分なりに「ここはこだわってみたい」「こう工夫してみよう」と意識している具体的なポイントはありますか。","【記述】"],
+    ["目標と成長","今、優先的に磨きたいスキルや、身につけたい専門知識、あるいは「これができるようになりたい」という目標に対して、自分なりの手応えや進み具合はどう感じていますか。","【記述】"],
+    ["環境と課題","目標達成に向けて、現在の業務や職場環境において課題と感じていることや、改善が必要だと思う点を教えてください。","【記述】"],
+    ["今後の展望・その他","現在の働き方や今後のキャリアについて、その他この機会に共有・相談しておきたい事項があれば自由にご記入ください。","【記述】"],
+  ]},
+  "【調査】次年度希望調査":{kind:"調査",purpose:"次年度の配置・勤務・キャリア等の希望を把握する内容（簡易）。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["業務の工夫","子どもたちへの関わりや、自身の役割を果たす中で、現在、特に注力していることや工夫していることについて教えてください。","【記述】"],
+    ["成長・やりがい","仕事を通じて、楽しかったことや、やりがい・意義を感じた出来事があれば教えてください。ご自身が達成感を得たことや、うれしかった出来事なども含めて教えてください。","【記述】"],
+    ["チームワーク・感謝","一緒に働く職員に対して、最近「助かったな」「ありがとう」と思ったことはありますか？ 具体的な相手やエピソードがあれば教えてください。","【記述】"],
+    ["課題と提案","現在、業務をより円滑に進める上で、課題と感じていることや改善の余地があると思う点について教えてください。","【記述】"],
+    ["周囲との関わり","日々の連携や保護者対応において、判断に迷った場面や、対応に工夫が必要だと感じている事項があれば共有してください。","【記述】"],
+    ["今後のキャリア","次年度の勤務希望や、今後目指していきたい働き方・キャリアについて教えてください。","【記述】"],
+    ["面談者への要望","私の立場であなたの力になれることがあれば教えてください。 ※今は特にないという場合は、空欄のまま提出してください。","【記述】"],
+  ]},
+  "【調査】意向調査":{kind:"調査",purpose:"異動・勤務形態など、各種意向を詳細に把握する内容。",source:TMPL_MENDAN_URL,items:[
+    ["心身の状態",Q_SHINSHIN,C_SHINSHIN],
+    ["業務の工夫","子どもたちへの関わりや、自身の役割を果たす中で、現在、特に注力していることや工夫していることについて教えてください。","【記述】"],
+    ["成長・やりがい","仕事を通じて、楽しかったことや、やりがい・意義を感じた出来事があれば教えてください。ご自身が達成感を得たことや、うれしかった出来事なども含めて教えてください。","【記述】"],
+    ["次年度の勤務希望","次年度の勤務希望について、現時点でのお気持ちを教えてください。","【選択】1.勤務の継続を希望する 2.異動を希望する 3.まだ決められていない 4.退職を検討している 5.退職を希望する 6.その他"],
+    ["次年度の勤務希望（その他）","上記の項目に当てはまらないものはこちらに記載して下さい。","【記述】"],
+    ["次年度の勤務についての相談","次年度の勤務について、別途面談を希望されますか？","【選択】1.希望する 2.希望しない"],
+    ["次年度の勤務についての相談","上記で希望すると回答された方で、面談者の希望があれば記載してください。 ※面談を希望しない方は空欄で提出してください。","【記述】"],
+    ["面談者への要望","私の立場であなたの力になれることがあれば教えてください。 ※今は特にないという場合は、空欄のまま提出してください。","【記述】"],
+  ]},
+  "自己評価":{kind:"自己評価",purpose:"各職種の評価項目に沿って職員が自己評価し、確認者がフィードバックコメントを記入します。職種・担当・職層・施設形態別にテンプレートがあり、標準は各30項目です。",source:TMPL_SELFEVAL_URL,note:SELFEVAL_TEMPLATE_NOTE,variants:[
+    "職種別：保育士・幼稚園教諭（70／30）、調理員（64／30）、栄養士（30）、看護師（61／30）、事務職（42／30）",
+    "担当別：未満児（30）／以上児（30）",
+    "職層別：新人職員（30）／マネジメント層（30）",
+    "施設形態別：小規模保育施設（30）／認定こども園（30）／学童（30）／児童発達支援（52／30）／放課後等デイ（50／30）",
+    "施設自己評価：保育施設共通（70）、認可保育園・小規模・認定こども園・幼稚園・学童 ほか（各50）",
+  ]},
+  "人権擁護セルフチェック":{kind:"自己評価（セルフチェック）",purpose:"子どもの人権擁護・不適切な関わりの防止を目的としたセルフチェック（28項目）。",source:TMPL_SELFEVAL_URL,variants:[
+    "職員｜人権擁護のためのセルフチェック（28項目）",
+    "全項目は元スプレッドシートを参照してください。",
+  ]},
+  "目標設定・振り返り":{kind:"目標管理",purpose:"目標の設定と振り返りをセットで行う、目標計画・管理機能の操作です（面談シートではありません）。",note:"目標計画・管理機能で、目標の設定入力→中間の進捗→振り返りコメントの入力を行います。"},
+  "目標振り返り":{kind:"目標管理",purpose:"設定した目標の達成度を振り返り、確認者がフィードバックする操作です。",note:"振り返りの入力依頼→確認者フィードバックの流れで進めます。"},
+  "目標設定・計画":{kind:"目標管理",purpose:"期のはじめに目標を設定し、達成に向けた計画を立てる操作です。",note:"年間または前期の目標設定面談と連動します。"},
+  "目標振り返り・設定":{kind:"目標管理",purpose:"前期の振り返りと後期の目標設定を同時に行う操作です。",note:"振り返り入力依頼→確認者フィードバック→後期設定面談の流れ。"},
+  "目標中間振り返り":{kind:"目標管理",purpose:"期の途中で進捗を確認し、必要なら軌道修正する操作です。",note:"振り返り入力依頼→確認者フィードバック。"},
+};
+function tmplBase(name){return String(name||"").replace(/（[^）]*）/g,"").replace(/〜/g,"").trim();}
+
+const FOCUS_OPTS=[
+  {v:"育成",t:"職員の育成に力を入れたい",d:"目標に沿った成長支援を促進する。"},
+  {v:"モチベーション",t:"定期的なモチベーション管理を行っていきたい",d:"1on1で対話を重ね、意欲を引き出す。"},
+  {v:"困りごと",t:"職員の困りごとを把握し、早期フォローをしたい",d:"相談・要望を拾い、早期離職を防ぐ。"},
+  {v:"評価",t:"自己評価・振り返りのサイクルを整備したい",d:"自己評価を軸に、公平な振り返りの仕組みを作る。"},
+  {v:"目標",t:"目標の管理をしっかり行いたい",d:"目標設定・振り返りのサイクルを回す。"},
+];
+const MENDAN_FOCUSES=["育成","モチベーション","困りごと"];
+function funcOf(f){if(f==="評価")return"自己評価";if(f==="目標")return"目標管理";return"面談";}
+
+const LEVEL_DEFS={
+  "育成":{label:"個人面談の実施経験",opts:[
+    {v:"上級者",lt:"3ヶ月に1回以上",ld:""},
+    {v:"中級者",lt:"半年に1回程度",ld:""},
+    {v:"初級者",lt:"年1回以下／これから",ld:""},
+  ]},
+  "評価":{label:"職員自己評価の実施経験",opts:[
+    {v:"上級者",lt:"年3回以上",ld:""},
+    {v:"中級者",lt:"年2回程度",ld:""},
+    {v:"初級者",lt:"年1回以下／これから",ld:""},
+  ]},
+  "目標":{label:"目標管理の実施経験",opts:[
+    {v:"上級者",lt:"実施してきた",ld:""},
+    {v:"中級者",lt:"部分的に実施",ld:""},
+    {v:"初級者",lt:"初めて（1年単位でまず始める）",ld:""},
+  ]},
+};
+
+function canChooseCycle(f,level){
+  if(!["育成","評価","目標"].includes(f))return false;
+  return level==="上級者"||level==="中級者";
+}
+function resolveMendanIkusei(level,cycle){
+  if(level==="初級者")return MENDAN_IKUSEI.shokyu;
+  return cycle==="学期"?MENDAN_IKUSEI.gakki:MENDAN_IKUSEI.hanki;
+}
+function resolveSelfeval(level,cycle){
+  if(level==="初級者")return SELFEVAL.hanki;
+  return cycle==="学期"?SELFEVAL.gakki:SELFEVAL.hanki;
+}
+function resolveGoal(level,cycle){
+  if(level==="初級者")return GOAL.ichinen;
+  return cycle==="学期"?GOAL.gakki:GOAL.hanki;
+}
+
+const state={phase:"start",step:0,focuses:[],levels:{},cycle:null,month:null,hojin:"",author:"",date:"",memo:"",savedId:""};
+let hojinList=null;
+
+const quizEl=document.getElementById("quiz"),resultEl=document.getElementById("result"),stepsEl=document.getElementById("steps");
+
+/* ===== 状態に依存しないプラン計算（保存レコードの再表示にも使う） ===== */
+function effectiveFocuses(focuses){
+  const top=focuses.find(f=>MENDAN_FOCUSES.includes(f));
+  return focuses.filter(f=>!MENDAN_FOCUSES.includes(f)||f===top);
+}
+function needCycle(){
+  const eff=effectiveFocuses(state.focuses);
+  return eff.some(f=>canChooseCycle(f,state.levels[f]));
+}
+function levelFocuses(){
+  const eff=effectiveFocuses(state.focuses);
+  return eff.filter(f=>["育成","評価","目標"].includes(f));
+}
+function stepList(){
+  const steps=["focus"];
+  if(levelFocuses().length>0)steps.push("level");
+  if(needCycle())steps.push("cycle");
+  steps.push("month");
+  return steps;
+}
+function renderSteps(){
+  const n=stepList().length;
+  stepsEl.innerHTML="";
+  for(let i=0;i<n;i++){const d=document.createElement("div");d.className="stepdot"+(i<state.step?" done":"")+(i===state.step?" active":"");stepsEl.appendChild(d);}
+}
+function render(){
+  if(state.phase==="start")return renderStart();
+  renderSteps();
+  const steps=stepList();
+  const cur=steps[state.step];
+  if(cur==="focus")return renderFocus();
+  if(cur==="level")return renderLevel();
+  if(cur==="cycle")return renderCycle();
+  if(cur==="month")return renderMonth();
+  return renderResult();
+}
+function navHtml(cb,cn,lbl){return`<div class="nav"><button class="btn ghost" id="backbtn" ${cb?"":"style='visibility:hidden'"}>← 戻る</button><button class="btn primary" id="nextbtn" ${cn?"":"disabled"}>${lbl}</button></div>`;}
+function wireNav(on){document.getElementById("nextbtn").onclick=on;const bb=document.getElementById("backbtn");if(bb)bb.onclick=()=>{state.step--;render();};}
+function isLastStep(){return state.step===stepList().length-1;}
+
+/* ===== 開始画面：先に法人を選ぶ ===== */
+function fetchHojins(){
+  if(!CONFIG.API_URL){hojinList=[];return Promise.resolve();}
+  return jsonp({action:"hojins"}).then(res=>{
+    hojinList=(res&&res.ok&&res.hojins)?res.hojins:[];
+  }).catch(()=>{hojinList=[];});
+}
+function renderStart(){
+  stepsEl.innerHTML="";
+  if(!state.date)state.date=todayStr();
+  const loading=hojinList===null;
+  const hasList=hojinList&&hojinList.length;
+  const dl=hasList?`<datalist id="hojin-dl">${hojinList.map(h=>`<option value="${esc(h)}"></option>`).join("")}</datalist>`:"";
+  const note=loading
+    ? '<div class="qhint">法人一覧を読み込み中…（読み込めなくても手入力で進められます）</div>'
+    : (hasList
+        ? `<div class="qhint">登録済み ${hojinList.length} 法人から選べます。文字を入力すると絞り込み表示されます。一覧に無い法人はそのまま入力してください。</div>`
+        : (CONFIG.API_URL
+            ? '<div class="qhint">法人一覧を取得できませんでした。手入力で進めます（組織Googleアカウントでログインしているか確認してください）。</div>'
+            : '<div class="qhint">共有先が未設定のため手入力で進めます（保存はできません）。</div>'));
+  quizEl.innerHTML=`<div class="card">
+    <div class="qnum">START</div>
+    <div class="qtitle">どの法人の診断を始めますか?</div>
+    <div class="qhint">先に法人を選ぶと、診断結果をそのまま共有台帳に保存できます。</div>
+    ${note}
+    <div style="margin-bottom:14px">
+      <label class="flab">法人名<span class="req">必須</span></label>
+      <input class="txt" id="st-hojin-new" list="hojin-dl" autocomplete="off" value="${esc(state.hojin)}" placeholder="法人名を入力／一覧から選択">
+      ${dl}
+    </div>
+    <div class="frow">
+      <div><label class="flab">記入者（担当CS）</label><input class="txt" id="st-author" value="${esc(state.author)}" placeholder="例：近藤"></div>
+      <div><label class="flab">実施日</label><input class="txt" id="st-date" type="date" value="${esc(state.date)}"></div>
+    </div>
+    <div class="nav"><span></span><button class="btn primary" id="st-next" disabled>診断を開始 →</button></div>
+  </div>`;
+  const inp=document.getElementById("st-hojin-new");
+  const nextBtn=document.getElementById("st-next");
+  const sync=()=>{nextBtn.disabled=!inp.value.trim();};
+  inp.oninput=sync;inp.onchange=sync;sync();
+  nextBtn.onclick=()=>{
+    const h=inp.value.trim();if(!h)return;
+    state.hojin=h;
+    state.author=document.getElementById("st-author").value.trim();
+    state.date=document.getElementById("st-date").value||todayStr();
+    state.phase="diagnose";state.step=0;state.savedId="";state.memo="";
+    render();
+  };
+}
+
+function renderFocus(){
+  const full=state.focuses.length>=2;
+  const opts=FOCUS_OPTS.map(o=>{const idx=state.focuses.indexOf(o.v);const sel=idx>=0?" sel":"";const dis=(full&&idx<0)?" disabled":"";return`<button class="opt${sel}${dis}" data-v="${o.v}"><div class="prio">${idx>=0?idx+1:""}</div><div class="ot">${o.t}</div><div class="od">${o.d}</div></button>`;}).join("");
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP 1</div><div class="qtitle">今年度は、どのような目的・テーマでマネジメント業務をすすめていきたいですか？</div><div class="qhint">最大2つまで選べます。タップした順が優先順位（①②）です。面談に関わる観点（育成・モチベーション・困りごと）を2つ選んだ場合は、優先順位が高い1つの面談プランのみを反映します。</div><div class="selhint">タップで選択／もう一度タップで解除。</div><div class="opts">${opts}</div>${navHtml(false,state.focuses.length>0,isLastStep()?"診断する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".opt").forEach(b=>{b.onclick=()=>{const v=b.dataset.v,i=state.focuses.indexOf(v);if(i>=0)state.focuses.splice(i,1);else{if(state.focuses.length>=2)return;state.focuses.push(v);}
+    Object.keys(state.levels).forEach(k=>{if(!state.focuses.includes(k))delete state.levels[k];});renderFocus();};});
+  wireNav(()=>{if(state.focuses.length){state.step++;render();}});
+}
+
+function renderLevel(){
+  const targets=levelFocuses();
+  const blocks=targets.map(f=>{
+    const def=LEVEL_DEFS[f];
+    const opts=def.opts.map(o=>{const sel=state.levels[f]===o.v?" sel":"";return`<button class="lvopt${sel}" data-f="${f}" data-v="${o.v}"><div class="lt">${o.lt}</div>${o.ld?`<div class="ld">${o.ld}</div>`:""}</button>`;}).join("");
+    return`<div class="lvblock"><div class="lvhead">${def.label}</div><div class="lvsub">これまでの実施頻度に近いものを選んでください。</div><div class="lvopts">${opts}</div></div>`;
+  }).join("");
+  const allSet=targets.every(f=>state.levels[f]);
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP 2</div><div class="qtitle">機能ごとの実施レベルは?</div><div class="qhint">機能ごとに、これまでの経験に近いレベルを選びます。レベルによって年間の回数・振り返りの選び方が変わります。</div>${blocks}${navHtml(true,allSet,isLastStep()?"診断する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".lvopt").forEach(b=>{b.onclick=()=>{state.levels[b.dataset.f]=b.dataset.v;
+    if(!needCycle())state.cycle=null;renderLevel();};});
+  wireNav(()=>{if(allSet){state.step++;render();}});
+}
+
+function renderCycle(){
+  const cycOpts=[
+    {v:"学期",t:"学期ごとに振り返る",d:"1学期・2学期・3学期の区切りで振り返り（年3回程度）。"},
+    {v:"半年",t:"半年ごとに振り返る",d:"前期・後期の区切りで振り返り（年2回程度）。"},
+  ];
+  const opts=cycOpts.map(o=>{const sel=state.cycle===o.v?" sel":"";return`<button class="opt${sel}" data-v="${o.v}"><div class="ot">${o.t}</div><div class="od">${o.d}</div></button>`;}).join("");
+  const targets=effectiveFocuses(state.focuses).filter(f=>canChooseCycle(f,state.levels[f])).map(f=>({育成:"個人面談",評価:"自己評価",目標:"目標管理"}[f]));
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP 3</div><div class="qtitle">振り返りのサイクルは?</div><div class="qhint">${targets.join("・")}の振り返りタイミングを揃えます。学期ごとか半年ごとかを選んでください（法人で1つに統一）。</div><div class="opts">${opts}</div>${navHtml(true,!!state.cycle,isLastStep()?"診断する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".opt").forEach(b=>{b.onclick=()=>{state.cycle=b.dataset.v;renderCycle();};});
+  wireNav(()=>{if(state.cycle){state.step++;render();}});
+}
+
+function renderMonth(){
+  let sel="<select class='month' id='monthsel'><option value=''>選択してください</option>";
+  for(let m=1;m<=12;m++)sel+=`<option value="${m}" ${state.month==m?"selected":""}>${MONTHS[m-1]}</option>`;
+  sel+="</select>";
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${stepList().length}</div><div class="qtitle">契約開始月はいつですか?</div><div class="qhint">年間スケジュールのどこから入るかが決まり、半年（開始月＋6ヶ月）の中で踏む第一歩が確定します。</div><div>${sel}</div>${navHtml(true,!!state.month,"診断する")}</div>`;
+  const ms=document.getElementById("monthsel");ms.onchange=()=>{state.month=ms.value?parseInt(ms.value):null;document.getElementById("nextbtn").disabled=!state.month;};
+  wireNav(()=>{if(state.month){state.step++;renderResult();}});
+}
+
+function fyIndex(m){return (m-4+12)%12;}
+function monthDist(a,b){return Math.abs(fyIndex(a)-fyIndex(b));}
+function buildPlan(st){
+  const focuses=st.focuses,levels=st.levels,cycle=st.cycle;
+  const top=focuses.find(f=>MENDAN_FOCUSES.includes(f));
+  const eff=effectiveFocuses(focuses);
+  const goalUsed=eff.includes("目標");
+  const ikuseiLevel=levels["育成"];
+  const ikuseiCycleAble=eff.includes("育成")&&canChooseCycle("育成",ikuseiLevel);
+  let items=[];
+  eff.forEach((f,pri)=>{
+    const fn=funcOf(f);let sched=[];
+    if(f==="育成")sched=resolveMendanIkusei(ikuseiLevel,cycle);
+    else if(f==="モチベーション")sched=MENDAN_MOTIV;
+    else if(f==="困りごと")sched=MENDAN_KOMARI;
+    else if(f==="評価")sched=resolveSelfeval(levels["評価"],cycle);
+    else if(f==="目標")sched=resolveGoal(levels["目標"],cycle);
+    sched.forEach(it=>{
+      let tmpl=it.template,alsoGoal=false;
+      if(f==="育成"&&it.goalM&&goalUsed){tmpl="【目標】設定・振り返り（目標計画・管理対応）";alsoGoal=true;}
+      items.push({m:it.m,title:it.title,desc:it.desc,template:tmpl,func:fn,focus:f,pri,alsoGoal});
+    });
+  });
+  const special=eff.includes("育成")&&goalUsed&&ikuseiCycleAble;
+  if(special)items=items.filter(it=>it.func!=="目標管理");
+  const groups=[];
+  items.forEach(it=>{let g=groups.find(g=>g.template===it.template&&g.func===it.func&&g.members.some(mm=>monthDist(mm.m,it.m)<=2));if(g)g.members.push(it);else groups.push({template:it.template,func:it.func,members:[it]});});
+  let merged=groups.map(g=>{const best=g.members.slice().sort((a,b)=>a.pri-b.pri||a.m-b.m)[0];return{m:best.m,title:best.title,desc:best.desc,template:g.template,func:g.func,pri:Math.min(...g.members.map(x=>x.pri)),alsoGoal:g.members.some(x=>x.alsoGoal)};});
+  merged.sort((a,b)=>a.m-b.m);
+  merged.eff=eff;merged.dropped=focuses.filter(f=>MENDAN_FOCUSES.includes(f)&&f!==top);
+  return merged;
+}
+function funcClassMap(plan){const order=[...new Set(plan.map(p=>p.func))];const map={};order.forEach((f,i)=>map[f]="f"+Math.min(i,2));return map;}
+function funcOrder(f){const o={"自己評価":0,"目標管理":1,"面談":2};return o[f]!==undefined?o[f]:9;}
+
+/* プラン本体のHTML（状態オブジェクトを渡す）。live時は診断結果、それ以外は再表示用 */
+function planMarkup(st){
+  const plan=buildPlan(st),startM=st.month,fmap=funcClassMap(plan);
+  function offset(m){return ((m-startM)+12)%12;}
+  const inWindow=(m)=>offset(m)<6;
+  const windowItems=plan.filter(it=>inWindow(it.m)).slice().sort((a,b)=>offset(a.m)-offset(b.m)||funcOrder(a.func)-funcOrder(b.func)||a.pri-b.pri);
+  const windowLast=MONTHS[((startM-1+5)%12)];
+  const byMonth={};plan.forEach(it=>{(byMonth[it.m]=byMonth[it.m]||[]).push(it);});
+  let rows="";
+  for(let i=0;i<12;i++){
+    const m=((4-1+i)%12)+1,arr=byMonth[m];if(!arr)continue;
+    arr.sort((a,b)=>funcOrder(a.func)-funcOrder(b.func)||a.pri-b.pri);
+    const isWin=inWindow(m);
+    const inner=arr.map(it=>`<div class="titem"><span class="tfunc ${fmap[it.func]}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}<span class="tt">${it.title}</span>${isWin?'<span class="firstflag">半年で実施</span>':''}<div class="td">${it.desc||""}</div><div class="ttemp clk" data-tmpl="${esc(it.template)}" title="クリックでテンプレの中身を表示">${it.template} ▸</div></div>`).join("");
+    rows+=`<div class="trow ${isWin?"isfirst":""}"><div class="tmonth">${MONTHS[m-1]}</div><div class="tbody">${inner}</div></div>`;
+  }
+  const badges=plan.eff.map((f,i)=>`<span class="badge seg">${i+1}. ${f}</span>`).join("")
+    +(st.cycle?`<span class="badge lvl">振り返り：${st.cycle}ごと</span>`:"");
+  const dropNote=(plan.dropped&&plan.dropped.length)?`<div class="note">面談は年間の流れを一貫させるため、優先順位が最も高い「${plan.eff.find(f=>MENDAN_FOCUSES.includes(f))}」の面談プランのみを反映しています（「${plan.dropped.join("・")}」の面談は今回は非採用）。自己評価・目標管理は別機能として併存します。</div>`:"";
+  let firstHtml;
+  if(windowItems.length){
+    const list=windowItems.map(it=>`<div class="witem"><div class="wmonth">${MONTHS[it.m-1]}</div><div class="wbody"><div class="wtitle"><span class="tfunc ${fmap[it.func]}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}${it.title}</div><div class="wtemp clk" data-tmpl="${esc(it.template)}" title="クリックでテンプレの中身を表示">テンプレ：${it.template} ▸</div></div></div>`).join("");
+    firstHtml=`<div class="section-t">半年で実施すること（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div><div class="first"><div class="ft">この半年で計画されている項目</div><div class="wlist">${list}</div></div>`;
+  }else{
+    firstHtml=`<div class="section-t">半年で実施すること（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div><div class="special"><div class="st">開始月＋6ヶ月以内に、実施タイミングがありません</div><div class="sd">${MONTHS[startM-1]}〜${windowLast}に実施予定がありません。(1)時期が来る次の実施を起点に、待つ間の段取りを進める、(2)時期非依存で着手できる機能を先に始める、のいずれかをCS判断で調整してください。</div></div>`;
+  }
+  const hasSelfeval=plan.some(p=>p.func==="自己評価");
+  return `<div class="result-head"><div class="rlabel">診断結果</div><h2>選んだ観点を統合した年間マネジメントプラン</h2><div class="rsub">契約開始月（${MONTHS[startM-1]}）を起点に、半年（〜${windowLast}）で実施する項目がライトサクセスの対象です。重複する面談・テンプレは1つにまとめています。</div><div>${badges}</div></div>${firstHtml}<div class="section-t">1年間のマネジメントプラン（統合）</div>${dropNote}<div class="timeline">${rows}</div><div class="legend">${[...new Set(plan.map(p=>p.func))].map(f=>`<span><span class="tfunc ${fmap[f]}">${f}</span></span>`).join("")}</div>${hasSelfeval?`<div class="note">${SELFEVAL_TEMPLATE_NOTE}</div>`:""}<div class="note">半年のライトサクセスは、この半年で計画されている項目を実施することがゴールです。達成後、次の半年で年間サイクル全体（＝マネジメントの習慣化）へ広げます。</div>`;
+}
+
+function focusesText(st){return st.focuses.map((f,i)=>`${i+1}.${f}`).join(" / ");}
+function levelsText(st){const ks=Object.keys(st.levels);return ks.length?ks.map(k=>`${k}:${st.levels[k]}`).join(" / "):"—";}
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+
+function renderResult(){
+  const steps=stepList();state.step=steps.length;renderSteps();[...stepsEl.children].forEach(d=>d.classList.add("done"));
+  const savePanel=`
+    <div class="save">
+      <div class="stt">この結果を保存する</div>
+      <div class="ssub">保存するとチームの共有台帳に1件追加され、「蓄積一覧・比較」タブから全員が閲覧できます。</div>
+      <div class="frow">
+        <div><label class="flab">法人名</label><input class="txt" id="sv-hojin" value="${esc(state.hojin)}"></div>
+        <div><label class="flab">実施日</label><input class="txt" id="sv-date" type="date" value="${esc(state.date||todayStr())}"></div>
+      </div>
+      <div class="frow">
+        <div><label class="flab">記入者（担当CS）</label><input class="txt" id="sv-author" value="${esc(state.author)}" placeholder="例：近藤"></div>
+        <div></div>
+      </div>
+      <div style="margin-bottom:12px"><label class="flab">打合せメモ（この結果について話したこと・決めたこと）</label><textarea class="txt" id="sv-memo" placeholder="打合せ中に直接メモできます。保存すると診断結果と一緒に蓄積され、一覧からいつでも見返せます。">${esc(state.memo||"")}</textarea></div>
+      <button class="btn primary" id="sv-btn">この結果を保存</button>
+      <div class="savemsg" id="sv-msg"></div>
+    </div>`;
+  resultEl.innerHTML=planMarkup(state)+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
+  document.getElementById("sv-btn").onclick=saveCurrent;
+  quizEl.classList.add("hidden");resultEl.classList.remove("hidden");
+}
+function restart(){state.phase="start";state.step=0;state.focuses=[];state.levels={};state.cycle=null;state.month=null;state.hojin="";state.memo="";state.savedId="";resultEl.classList.add("hidden");quizEl.classList.remove("hidden");render();}
+
+/* ===================== 共有台帳（Apps Script/スプレッドシート）連携 ===================== */
+function jsonp(params){
+  return new Promise((resolve,reject)=>{
+    if(!CONFIG.API_URL){reject(new Error("NO_API"));return;}
+    const cb="__cb"+Math.random().toString(36).slice(2);
+    const s=document.createElement("script");
+    let done=false;
+    const cleanup=()=>{try{delete window[cb];}catch(e){window[cb]=undefined;}s.remove();};
+    window[cb]=(data)=>{done=true;resolve(data);cleanup();};
+    s.onerror=()=>{if(!done){reject(new Error("NETWORK"));cleanup();}};
+    const q=new URLSearchParams(Object.assign({},params,{callback:cb,token:CONFIG.TOKEN})).toString();
+    s.src=CONFIG.API_URL+"?"+q;
+    document.body.appendChild(s);
+    setTimeout(()=>{if(!done){reject(new Error("TIMEOUT"));cleanup();}},15000);
+  });
+}
+function saveCurrent(){
+  const msg=document.getElementById("sv-msg");
+  const hojin=document.getElementById("sv-hojin").value.trim();
+  const date=document.getElementById("sv-date").value;
+  const author=document.getElementById("sv-author").value.trim();
+  const memo=document.getElementById("sv-memo").value;
+  state.memo=memo;state.author=author;state.hojin=hojin;state.date=date;  // 再描画してもメモが消えないよう保持
+  msg.className="savemsg";
+  if(!hojin){msg.className="savemsg err";msg.textContent="法人名を入力してください。";return;}
+  if(!CONFIG.API_URL){msg.className="savemsg info";msg.textContent="共有先が未設定です。README.md の手順どおり Apps Script をデプロイし、CONFIG.API_URL を設定してください。";return;}
+  const payload=JSON.stringify({focuses:state.focuses,levels:state.levels,cycle:state.cycle,month:state.month});
+  const btn=document.getElementById("sv-btn");btn.disabled=true;
+  msg.className="savemsg info";msg.textContent=state.savedId?"更新中…":"保存中…";
+  const fields={hojin,date,author,cycle:state.cycle||"",month:state.month,
+                focusesText:focusesText(state),levelsText:levelsText(state),payload,memo};
+  const params=state.savedId?Object.assign({action:"update",id:state.savedId},fields)
+                            :Object.assign({action:"save",id:"r"+Date.now()+Math.floor(Math.random()*10000)},fields);
+  jsonp(params)
+    .then(res=>{
+      if(res&&res.ok){
+        if(!state.savedId){state.savedId=params.id;btn.textContent="メモを更新して保存";}
+        msg.className="savemsg ok";
+        msg.textContent="保存しました。このままメモを追記して「メモを更新して保存」もできます。一覧からも後で編集できます。";
+        listCache=null;btn.disabled=false;
+      }else{msg.className="savemsg err";msg.textContent="保存に失敗しました："+((res&&res.error)||"不明なエラー");btn.disabled=false;}
+    })
+    .catch(e=>{msg.className="savemsg err";msg.textContent="通信に失敗しました（"+e.message+"）。URL設定・デプロイ範囲を確認してください。";btn.disabled=false;});
+}
+
+/* ===================== 一覧・比較ビュー ===================== */
+const listView=document.getElementById("list-view");
+let listCache=null;
+function showList(){
+  if(!CONFIG.API_URL){
+    listView.innerHTML=`<div class="card"><div class="qtitle">共有先が未設定です</div><div class="qhint">README.md の手順で Apps Script をデプロイし、index.html 冒頭の <b>CONFIG.API_URL</b> にウェブアプリURLを設定すると、ここに全法人の診断結果が一覧表示されます。</div></div>`;
+    return;
+  }
+  if(listCache){renderList(listCache);return;}
+  listView.innerHTML=`<div class="empty">読み込み中…</div>`;
+  jsonp({action:"list"}).then(res=>{
+    if(res&&res.ok){listCache=res.rows||[];renderList(listCache);}
+    else listView.innerHTML=`<div class="empty">読み込みに失敗しました：${(res&&res.error)||"不明なエラー"}</div>`;
+  }).catch(e=>{listView.innerHTML=`<div class="empty">通信に失敗しました（${e.message}）</div>`;});
+}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function renderList(rows){
+  if(!rows.length){listView.innerHTML=`<div class="empty">まだ保存された診断はありません。<br>「診断する」タブで実施し、結果画面から保存してください。</div>`;return;}
+  // 集計
+  const focusCount={};rows.forEach(r=>{try{const p=JSON.parse(r.payload||"{}");(p.focuses||[]).forEach(f=>focusCount[f]=(focusCount[f]||0)+1);}catch(e){}});
+  const maxF=Math.max(1,...Object.values(focusCount));
+  const focusBars=Object.keys(focusCount).sort((a,b)=>focusCount[b]-focusCount[a]).map(f=>
+    `<div class="sumbar"><span class="bl">${esc(f)}</span><span class="bt"><span style="width:${Math.round(focusCount[f]/maxF*100)}%"></span></span><span class="bn">${focusCount[f]}</span></div>`).join("");
+  const monthCount={};rows.forEach(r=>{const m=r.month;if(m)monthCount[m]=(monthCount[m]||0)+1;});
+  const maxM=Math.max(1,...Object.values(monthCount));
+  const monthBars=Object.keys(monthCount).sort((a,b)=>a-b).map(m=>
+    `<div class="sumbar"><span class="bl">${MONTHS[m-1]}</span><span class="bt"><span style="width:${Math.round(monthCount[m]/maxM*100)}%"></span></span><span class="bn">${monthCount[m]}</span></div>`).join("");
+
+  const trs=rows.map((r,i)=>{
+    const focusTags=String(r.focusesText||"").split(" / ").filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+    const dt=r.ts?String(r.ts).slice(0,10):"";
+    const memo1=String(r.memo||"").replace(/\s+/g," ").trim();
+    const memoCell=memo1?`<span class="memocell" title="${esc(r.memo)}">📝 ${esc(memo1)}</span>`:"—";
+    return `<tr>
+      <td class="hj">${esc(r.hojin)}</td>
+      <td>${esc(r.date||dt)}</td>
+      <td>${esc(r.author||"—")}</td>
+      <td>${focusTags||"—"}</td>
+      <td>${r.month?MONTHS[r.month-1]:"—"}</td>
+      <td>${memoCell}</td>
+      <td><button class="rowbtn" data-i="${i}">プラン・メモを表示</button></td>
+    </tr>`;
+  }).join("");
+
+  listView.innerHTML=`
+    <div class="listbar">
+      <div class="lcount">保存件数：<b>${rows.length}</b> 件</div>
+      <div><input class="txt searchbox" id="list-search" placeholder="法人名・記入者で絞り込み"></div>
+      <button class="btn" id="list-reload">再読み込み</button>
+    </div>
+    <div class="sum">
+      <div class="sumcard"><div class="sh">よく選ばれる観点</div>${focusBars||'<div class="qhint">—</div>'}</div>
+      <div class="sumcard"><div class="sh">契約開始月の分布</div>${monthBars||'<div class="qhint">—</div>'}</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="rec">
+      <thead><tr><th>法人名</th><th>実施日</th><th>記入者</th><th>観点</th><th>開始月</th><th>メモ</th><th></th></tr></thead>
+      <tbody id="rec-body">${trs}</tbody>
+    </table>
+    </div>`;
+  document.getElementById("list-reload").onclick=()=>{listCache=null;showList();};
+  document.getElementById("list-search").oninput=e=>{
+    const q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#rec-body tr").forEach((tr,i)=>{
+      const r=rows[i];const hay=((r.hojin||"")+" "+(r.author||"")).toLowerCase();
+      tr.style.display=hay.includes(q)?"":"none";
+    });
+  };
+  document.querySelectorAll(".rowbtn").forEach(b=>{b.onclick=()=>openPlan(rows[+b.dataset.i]);});
+}
+function openPlan(r){
+  let st;
+  try{const p=JSON.parse(r.payload||"{}");st={focuses:p.focuses||[],levels:p.levels||{},cycle:p.cycle||null,month:p.month};}
+  catch(e){st=null;}
+  const title=document.getElementById("modal-title");
+  const body=document.getElementById("modal-body");
+  title.textContent=(r.hojin||"法人")+"　のマネジメントプラン";
+  const when=esc(r.date||(r.ts?String(r.ts).slice(0,10):""));
+  const editable=!!r.id;
+  const memoBlock=`<div class="memoblock">
+    <div class="mt">打合せメモ（${when}${r.author?" ／ "+esc(r.author):""}）</div>
+    <textarea class="txt" id="pm-memo" ${editable?"":"disabled"} placeholder="打合せの内容をここに記入・追記できます。">${esc(r.memo||"")}</textarea>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+      <button class="btn primary" id="pm-save" ${editable?"":"disabled"}>メモを保存（この行を上書き）</button>
+      <span class="savemsg" id="pm-msg" style="margin:0;padding:6px 10px"></span>
+    </div>
+    ${editable?"":'<div class="qhint" style="margin-top:8px">この記録は旧バージョンで保存されたため後編集できません。新しく保存した記録から編集できます。</div>'}
+  </div>`;
+  const planHtml=(!st||!st.month)?`<div class="empty">このレコードには再表示用のデータがありません。</div>`:planMarkup(st);
+  body.innerHTML=memoBlock+planHtml;
+  if(editable){
+    document.getElementById("pm-save").onclick=()=>{
+      const m=document.getElementById("pm-msg");const val=document.getElementById("pm-memo").value;
+      const b=document.getElementById("pm-save");b.disabled=true;
+      m.className="savemsg info";m.textContent="保存中…";
+      jsonp({action:"update",id:r.id,memo:val})
+        .then(res=>{
+          if(res&&res.ok){m.className="savemsg ok";m.textContent="更新しました。";r.memo=val;if(listCache)renderList(listCache);b.disabled=false;}
+          else{m.className="savemsg err";m.textContent="失敗："+((res&&res.error)||"不明なエラー");b.disabled=false;}
+        })
+        .catch(e=>{m.className="savemsg err";m.textContent="通信失敗（"+e.message+"）";b.disabled=false;});
+    };
+  }
+  document.getElementById("modal").classList.add("show");
+}
+document.getElementById("modal-close").onclick=()=>document.getElementById("modal").classList.remove("show");
+document.getElementById("modal").onclick=e=>{if(e.target.id==="modal")document.getElementById("modal").classList.remove("show");};
+
+/* ===== テンプレート内容の表示 ===== */
+function openTemplate(name){
+  const t=TEMPLATES[name]||TEMPLATES[tmplBase(name)];
+  const title=document.getElementById("tmodal-title");
+  const body=document.getElementById("tmodal-body");
+  title.textContent=name;
+  if(!t){
+    body.innerHTML=`<div class="tpurpose">このテンプレートの中身はまだ登録されていません。</div><div class="tdraft">index.html の <b>TEMPLATES</b> にこの名称の項目を追加すると、ここに内容が表示されます。</div>`;
+  }else{
+    let html=`<div class="tkind">${esc(t.kind||"")}</div><div class="tpurpose">${esc(t.purpose||"")}</div>`;
+    if(t.items&&t.items.length){
+      html+=`<div class="section-t" style="margin-top:4px">設問（${t.items.length}項目）</div>`;
+      html+=t.items.map((it,i)=>`<div class="qitem"><div class="qcat">${i+1}. ${esc(it[0])}</div><div class="qq">${esc(it[1])}</div>${it[2]?`<div class="qa">${esc(it[2])}</div>`:""}</div>`).join("");
+    }
+    if(t.variants&&t.variants.length){
+      html+=`<div class="section-t" style="margin-top:4px">テンプレートの種類</div>`;
+      html+=`<ul class="titems">`+t.variants.map(v=>`<li>${esc(v)}</li>`).join("")+`</ul>`;
+    }
+    if(t.note)html+=`<div class="note">${esc(t.note)}</div>`;
+    if(t.source)html+=`<a class="btn primary tsrc" href="${esc(t.source)}" target="_blank" rel="noopener">元のテンプレート（スプレッドシート）を開く ↗</a>`;
+    body.innerHTML=html;
+  }
+  document.getElementById("tmodal").classList.add("show");
+}
+document.getElementById("tmodal-close").onclick=()=>document.getElementById("tmodal").classList.remove("show");
+document.getElementById("tmodal").onclick=e=>{if(e.target.id==="tmodal")document.getElementById("tmodal").classList.remove("show");};
+document.addEventListener("click",e=>{const el=e.target.closest&&e.target.closest("[data-tmpl]");if(el){openTemplate(el.getAttribute("data-tmpl"));}});
+
+/* ===================== タブ切替 ===================== */
+const tabDiag=document.getElementById("tab-diag"),tabList=document.getElementById("tab-list");
+const diagView=document.getElementById("diag-view");
+tabDiag.onclick=()=>{tabDiag.classList.add("active");tabList.classList.remove("active");diagView.classList.remove("hidden");listView.classList.add("hidden");};
+tabList.onclick=()=>{tabList.classList.add("active");tabDiag.classList.remove("active");listView.classList.remove("hidden");diagView.classList.add("hidden");showList();};
+
+render();                       // まず開始画面を出す（一覧は読み込み中表示）
+fetchHojins().then(()=>{if(state.phase==="start")renderStart();});  // 法人一覧が来たら選択肢を反映
+</script>
+</body>
+</html>
