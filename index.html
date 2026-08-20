@@ -9,6 +9,7 @@
     --ink:#12211F;--deep:#0F6E56;--teal:#1D9E75;--mist:#E1F5EE;--paper:#FFFFFF;--soft:#F4F7F5;
     --line:#DCE4E1;--muted:#5F6B68;--amber:#BA7517;--amberbg:#FAEEDA;--green:#3B6D11;--greenbg:#EAF3DE;
     --shadow:0 1px 3px rgba(15,110,86,.08);--blue:#185FA5;--bluebg:#E6F1FB;--purple:#534AB7;--purplebg:#EEEDFE;
+    --red:#B4262B;--redbg:#FBE9E9;--line-strong:#C6D2CD;
     --red:#B4262B;--redbg:#FBE9E9;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -59,6 +60,25 @@
   .memoblock .mt{font-size:12px;font-weight:700;color:var(--deep);letter-spacing:.05em}
   .memoblock .mbody{font-size:14px;margin-top:6px;line-height:1.7;white-space:pre-wrap}
   .memocell{max-width:240px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* プラン編集エディタ */
+  .planbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:22px;flex-wrap:wrap}
+  .editlist{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:10px;background:var(--paper)}
+  .erow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-top:1px dashed var(--line)}
+  .erow:first-child{border-top:none}
+  .erow.win{background:var(--greenbg)}
+  .esel{font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);cursor:pointer;max-width:100%}
+  .etitle{font-family:inherit;font-size:13.5px;font-weight:600;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);flex:1;min-width:150px}
+  .etitle:focus,.esel:focus{outline:none;border-color:var(--deep);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  .emonthlbl{font-weight:700;color:var(--deep);font-size:13px;min-width:40px}
+  .etitlelbl{font-weight:700;font-size:14px;flex:1}
+  .etempllbl{font-size:11.5px;color:var(--deep);background:var(--mist);border-radius:6px;padding:2px 8px;font-weight:700;cursor:pointer}
+  .eicon{border:1.5px solid var(--line);background:var(--paper);border-radius:8px;font-weight:700;cursor:pointer;padding:5px 10px;font-size:14px;color:var(--muted);line-height:1}
+  .eicon:hover{background:var(--soft)}
+  .edel:hover{color:var(--red);border-color:var(--red);background:var(--redbg)}
+  .eadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding:12px;background:var(--soft);border:1.5px dashed var(--line-strong);border-radius:12px}
+  .eadd .etitle{min-width:140px}
+  .eaddbtn{padding:8px 16px;font-size:13px}
+  .ehint{font-size:12px;color:var(--muted);margin-top:8px}
   .nav{display:flex;justify-content:space-between;margin-top:22px;gap:12px}
   .btn{font-family:inherit;font-size:14px;font-weight:700;padding:11px 22px;border-radius:10px;cursor:pointer;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);transition:all .15s}
   .btn:hover{background:var(--soft)}
@@ -454,7 +474,7 @@ function resolveGoal(level,cycle){
   return cycle==="学期"?GOAL.gakki:GOAL.hanki;
 }
 
-const state={phase:"start",step:0,focuses:[],levels:{},cycle:null,month:null,hojin:"",author:"",date:"",memo:"",savedId:""};
+const state={phase:"start",step:0,focuses:[],levels:{},cycle:null,month:null,hojin:"",author:"",date:"",memo:"",savedId:"",planItems:null};
 let hojinList=null;
 
 const quizEl=document.getElementById("quiz"),resultEl=document.getElementById("result"),stepsEl=document.getElementById("steps");
@@ -544,7 +564,7 @@ function renderStart(){
     state.hojin=h;
     state.author=document.getElementById("st-author").value.trim();
     state.date=document.getElementById("st-date").value||todayStr();
-    state.phase="diagnose";state.step=0;state.savedId="";state.memo="";
+    state.phase="diagnose";state.step=0;state.savedId="";state.memo="";state.planItems=null;
     render();
   };
 }
@@ -590,7 +610,7 @@ function renderMonth(){
   sel+="</select>";
   quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${stepList().length}</div><div class="qtitle">契約開始月はいつですか?</div><div class="qhint">年間スケジュールのどこから入るかが決まり、半年（開始月＋6ヶ月）の中で踏む第一歩が確定します。</div><div>${sel}</div>${navHtml(true,!!state.month,"診断する")}</div>`;
   const ms=document.getElementById("monthsel");ms.onchange=()=>{state.month=ms.value?parseInt(ms.value):null;document.getElementById("nextbtn").disabled=!state.month;};
-  wireNav(()=>{if(state.month){state.step++;renderResult();}});
+  wireNav(()=>{if(state.month){state.step++;state.planItems=null;renderResult();}});
 }
 
 function fyIndex(m){return (m-4+12)%12;}
@@ -662,6 +682,89 @@ function focusesText(st){return st.focuses.map((f,i)=>`${i+1}.${f}`).join(" / ")
 function levelsText(st){const ks=Object.keys(st.levels);return ks.length?ks.map(k=>`${k}:${st.levels[k]}`).join(" / "):"—";}
 function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 
+/* ===================== 編集できるプランボード ===================== */
+const FUNC_LIST=["面談","自己評価","目標管理"];
+const FUNC_CLASS={"面談":"f0","自己評価":"f1","目標管理":"f2"};
+const TEMPLATE_BY_FUNC={
+  "面談":["【新年度】役割・体制確認","【通常】振り返り・改善","【通常】できたこと・気づき","【通常】相談・要望","【1on1】対話・サポート","【フォロー】成長・サポート","【目標】設定・振り返り","【目標】設定・振り返り（目標計画・管理対応）","【調査】次年度希望調査","【調査】意向調査"],
+  "自己評価":["自己評価（各職種30項目）","人権擁護セルフチェック"],
+  "目標管理":["目標設定・振り返り","目標振り返り","目標設定・計画","目標振り返り・設定","目標中間振り返り"],
+};
+function clonePlan(plan){return plan.map(it=>({m:it.m,func:it.func,title:it.title||"",template:it.template||"",alsoGoal:!!it.alsoGoal}));}
+function fyOffset(m,startM){return ((m-startM)+12)%12;}
+function planHeadHtml(st,startM){
+  const eff=effectiveFocuses(st.focuses||[]);
+  const windowLast=MONTHS[((startM-1+5)%12)];
+  const badges=eff.map((f,i)=>`<span class="badge seg">${i+1}. ${f}</span>`).join("")+(st.cycle?`<span class="badge lvl">振り返り：${st.cycle}ごと</span>`:"");
+  return `<div class="result-head"><div class="rlabel">診断結果</div><h2>選んだ観点を統合した年間マネジメントプラン</h2><div class="rsub">契約開始月（${MONTHS[startM-1]}）を起点に、半年（〜${windowLast}）で実施する項目がライトサクセスの対象です。打合せに合わせて、下で項目の追加・削除・月の組み替えができます。</div><div>${badges}</div></div>`;
+}
+function windowSectionHtml(items,startM){
+  const windowLast=MONTHS[((startM-1+5)%12)];
+  const win=items.filter(it=>fyOffset(it.m,startM)<6).slice().sort((a,b)=>fyOffset(a.m,startM)-fyOffset(b.m,startM)||funcOrder(a.func)-funcOrder(b.func));
+  let inner;
+  if(win.length){
+    inner=`<div class="first"><div class="ft">この半年で計画されている項目（${win.length}件）</div><div class="wlist">`+win.map(it=>`<div class="witem"><div class="wmonth">${MONTHS[it.m-1]}</div><div class="wbody"><div class="wtitle"><span class="tfunc ${FUNC_CLASS[it.func]||'f0'}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}${esc(it.title)}</div>${it.template?`<div class="wtemp clk" data-tmpl="${esc(it.template)}" title="クリックでテンプレの中身を表示">テンプレ：${esc(it.template)} ▸</div>`:''}</div></div>`).join("")+`</div></div>`;
+  }else{
+    inner=`<div class="special"><div class="st">開始月＋6ヶ月以内に、実施タイミングがありません</div><div class="sd">${MONTHS[startM-1]}〜${windowLast}に実施予定がありません。下で項目を追加するか、時期非依存の機能を先に着手してください。</div></div>`;
+  }
+  return `<div class="section-t">半年で実施すること（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div>${inner}`;
+}
+function editRowsHtml(items,startM,editable){
+  const order=items.map((it,idx)=>({it,idx})).sort((a,b)=>fyOffset(a.it.m,startM)-fyOffset(b.it.m,startM)||funcOrder(a.it.func)-funcOrder(b.it.func));
+  if(!order.length)return `<div class="erow" style="color:var(--muted)">項目がありません。下の「追加」から項目を足してください。</div>`;
+  return order.map(({it,idx})=>{
+    const win=fyOffset(it.m,startM)<6;
+    const monthSel=editable?`<select class="esel emonth" data-i="${idx}">${MONTHS.map((mm,k)=>`<option value="${k+1}" ${it.m===k+1?'selected':''}>${mm}</option>`).join("")}</select>`:`<span class="emonthlbl">${MONTHS[it.m-1]}</span>`;
+    const chip=`<span class="tfunc ${FUNC_CLASS[it.func]||'f0'}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}`;
+    const title=editable?`<input class="etitle" data-i="${idx}" value="${esc(it.title)}">`:`<span class="etitlelbl">${esc(it.title)}</span>`;
+    let templ="";
+    if(editable){
+      const list=(TEMPLATE_BY_FUNC[it.func]||[]).slice();if(it.template&&list.indexOf(it.template)<0)list.unshift(it.template);
+      templ=`<select class="esel etempl" data-i="${idx}"><option value="">（テンプレなし）</option>${list.map(tp=>`<option value="${esc(tp)}" ${it.template===tp?'selected':''}>${esc(tp)}</option>`).join("")}</select>`;
+    }else if(it.template){templ=`<span class="etempllbl clk" data-tmpl="${esc(it.template)}">${esc(it.template)} ▸</span>`;}
+    const view=it.template?`<button class="eicon" data-tmpl="${esc(it.template)}" title="テンプレの中身を表示">▸</button>`:'';
+    const del=editable?`<button class="eicon edel" data-i="${idx}" title="この項目を削除">×</button>`:'';
+    return `<div class="erow ${win?'win':''}">${monthSel}${chip}${title}${templ}${view}${del}</div>`;
+  }).join("");
+}
+function addFormHtml(){
+  const mopts=MONTHS.map((mm,k)=>`<option value="${k+1}">${mm}</option>`).join("");
+  const fopts=FUNC_LIST.map(f=>`<option value="${f}">${f}</option>`).join("");
+  const topts=TEMPLATE_BY_FUNC["面談"].map(tp=>`<option value="${esc(tp)}">${esc(tp)}</option>`).join("");
+  return `<div class="eadd">
+    <select class="esel" id="add-month">${mopts}</select>
+    <select class="esel" id="add-func">${fopts}</select>
+    <input class="etitle" id="add-title" placeholder="項目名（例：中間面談）">
+    <select class="esel" id="add-templ"><option value="">（テンプレなし）</option>${topts}</select>
+    <button class="btn primary eaddbtn" id="add-btn">＋ 追加</button>
+  </div>`;
+}
+function renderPlanInto(container,items,startM,opts){
+  opts=opts||{};const editable=opts.editable!==false;
+  const barHtml=editable
+    ? `<div class="planbar"><div class="section-t" style="margin:0">1年間のマネジメントプラン</div><div class="ehint" style="margin:0">月の変更・項目名の編集・削除・追加ができます</div></div>`
+    : `<div class="section-t">1年間のマネジメントプラン</div>`;
+  container.innerHTML=windowSectionHtml(items,startM)+barHtml+`<div class="editlist">${editRowsHtml(items,startM,editable)}</div>`+(editable?addFormHtml():"");
+  const rerender=()=>{renderPlanInto(container,items,startM,opts);if(opts.onChange)opts.onChange();};
+  if(editable){
+    container.querySelectorAll(".emonth").forEach(s=>{s.onchange=()=>{items[+s.dataset.i].m=parseInt(s.value);rerender();};});
+    container.querySelectorAll("input.etitle[data-i]").forEach(inp=>{inp.oninput=()=>{items[+inp.dataset.i].title=inp.value;if(opts.onChange)opts.onChange();};});
+    container.querySelectorAll(".etempl").forEach(s=>{s.onchange=()=>{items[+s.dataset.i].template=s.value;if(opts.onChange)opts.onChange();};});
+    container.querySelectorAll(".edel").forEach(b=>{b.onclick=()=>{items.splice(+b.dataset.i,1);rerender();};});
+    const af=container.querySelector("#add-func");
+    if(af)af.onchange=()=>{const tp=container.querySelector("#add-templ");const list=TEMPLATE_BY_FUNC[af.value]||[];tp.innerHTML=`<option value="">（テンプレなし）</option>`+list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");};
+    const ab=container.querySelector("#add-btn");
+    if(ab)ab.onclick=()=>{
+      const m=parseInt(container.querySelector("#add-month").value);
+      const func=container.querySelector("#add-func").value;
+      const title=container.querySelector("#add-title").value.trim()||"（無題の項目）";
+      const template=container.querySelector("#add-templ").value;
+      items.push({m:m,func:func,title:title,template:template,alsoGoal:false});
+      rerender();
+    };
+  }
+}
+
 function renderResult(){
   const steps=stepList();state.step=steps.length;renderSteps();[...stepsEl.children].forEach(d=>d.classList.add("done"));
   const savePanel=`
@@ -680,11 +783,13 @@ function renderResult(){
       <button class="btn primary" id="sv-btn">この結果を保存</button>
       <div class="savemsg" id="sv-msg"></div>
     </div>`;
-  resultEl.innerHTML=planMarkup(state)+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
+  if(!state.planItems)state.planItems=clonePlan(buildPlan(state));
+  resultEl.innerHTML=planHeadHtml(state,state.month)+`<div id="plan-area"></div>`+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
+  renderPlanInto(document.getElementById("plan-area"),state.planItems,state.month,{editable:true});
   document.getElementById("sv-btn").onclick=saveCurrent;
   quizEl.classList.add("hidden");resultEl.classList.remove("hidden");
 }
-function restart(){state.phase="start";state.step=0;state.focuses=[];state.levels={};state.cycle=null;state.month=null;state.hojin="";state.memo="";state.savedId="";resultEl.classList.add("hidden");quizEl.classList.remove("hidden");render();}
+function restart(){state.phase="start";state.step=0;state.focuses=[];state.levels={};state.cycle=null;state.month=null;state.hojin="";state.memo="";state.savedId="";state.planItems=null;resultEl.classList.add("hidden");quizEl.classList.remove("hidden");render();}
 
 /* ===================== 共有台帳（Apps Script/スプレッドシート）連携 ===================== */
 function jsonp(params){
@@ -712,7 +817,7 @@ function saveCurrent(){
   msg.className="savemsg";
   if(!hojin){msg.className="savemsg err";msg.textContent="法人名を入力してください。";return;}
   if(!CONFIG.API_URL){msg.className="savemsg info";msg.textContent="共有先が未設定です。README.md の手順どおり Apps Script をデプロイし、CONFIG.API_URL を設定してください。";return;}
-  const payload=JSON.stringify({focuses:state.focuses,levels:state.levels,cycle:state.cycle,month:state.month});
+  const payload=JSON.stringify({focuses:state.focuses,levels:state.levels,cycle:state.cycle,month:state.month,planItems:state.planItems});
   const btn=document.getElementById("sv-btn");btn.disabled=true;
   msg.className="savemsg info";msg.textContent=state.savedId?"更新中…":"保存中…";
   const fields={hojin,date,author,cycle:state.cycle||"",month:state.month,
@@ -802,33 +907,37 @@ function renderList(rows){
   document.querySelectorAll(".rowbtn").forEach(b=>{b.onclick=()=>openPlan(rows[+b.dataset.i]);});
 }
 function openPlan(r){
-  let st;
-  try{const p=JSON.parse(r.payload||"{}");st={focuses:p.focuses||[],levels:p.levels||{},cycle:p.cycle||null,month:p.month};}
-  catch(e){st=null;}
+  let base;
+  try{base=JSON.parse(r.payload||"{}");}catch(e){base={};}
+  const startM=base.month;
+  let items;
+  if(base.planItems&&base.planItems.length){items=base.planItems.map(x=>({m:x.m,func:x.func,title:x.title||"",template:x.template||"",alsoGoal:!!x.alsoGoal}));}
+  else if(startM){items=clonePlan(buildPlan({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM}));}
+  else {items=[];}
+  const editable=!!r.id;
   const title=document.getElementById("modal-title");
   const body=document.getElementById("modal-body");
   title.textContent=(r.hojin||"法人")+"　のマネジメントプラン";
   const when=esc(r.date||(r.ts?String(r.ts).slice(0,10):""));
-  const editable=!!r.id;
-  const memoBlock=`<div class="memoblock">
-    <div class="mt">打合せメモ（${when}${r.author?" ／ "+esc(r.author):""}）</div>
-    <textarea class="txt" id="pm-memo" ${editable?"":"disabled"} placeholder="打合せの内容をここに記入・追記できます。">${esc(r.memo||"")}</textarea>
-    <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-      <button class="btn primary" id="pm-save" ${editable?"":"disabled"}>メモを保存（この行を上書き）</button>
-      <span class="savemsg" id="pm-msg" style="margin:0;padding:6px 10px"></span>
-    </div>
-    ${editable?"":'<div class="qhint" style="margin-top:8px">この記録は旧バージョンで保存されたため後編集できません。新しく保存した記録から編集できます。</div>'}
-  </div>`;
-  const planHtml=(!st||!st.month)?`<div class="empty">このレコードには再表示用のデータがありません。</div>`:planMarkup(st);
-  body.innerHTML=memoBlock+planHtml;
+  const memoBlock=editable
+    ? `<div class="memoblock"><div class="mt">打合せメモ（${when}${r.author?" ／ "+esc(r.author):""}）</div><textarea class="txt" id="pm-memo" placeholder="打合せの内容をここに記入・追記できます。">${esc(r.memo||"")}</textarea></div>`
+    : (r.memo?`<div class="memoblock"><div class="mt">打合せメモ（${when}${r.author?" ／ "+esc(r.author):""}）</div><div class="mbody">${esc(r.memo)}</div></div>`:"");
+  const head=startM?planHeadHtml({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null},startM):"";
+  const saveBar=editable
+    ? `<div style="display:flex;gap:10px;align-items:center;margin-top:16px"><button class="btn primary" id="pm-save">変更を保存（メモ・プラン）</button><span class="savemsg" id="pm-msg" style="margin:0;padding:6px 10px"></span></div>`
+    : `<div class="qhint" style="margin-top:12px">この記録は旧バージョンのため編集できません（新しく保存した記録から編集できます）。</div>`;
+  body.innerHTML=memoBlock+head+`<div id="pm-plan"></div>`+saveBar;
+  if(startM){renderPlanInto(document.getElementById("pm-plan"),items,startM,{editable:editable});}
+  else{document.getElementById("pm-plan").innerHTML=`<div class="empty">このレコードには再表示用のデータがありません。</div>`;}
   if(editable){
     document.getElementById("pm-save").onclick=()=>{
-      const m=document.getElementById("pm-msg");const val=document.getElementById("pm-memo").value;
+      const m=document.getElementById("pm-msg");const memo=document.getElementById("pm-memo").value;
+      const newPayload=JSON.stringify({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM,planItems:items});
       const b=document.getElementById("pm-save");b.disabled=true;
       m.className="savemsg info";m.textContent="保存中…";
-      jsonp({action:"update",id:r.id,memo:val})
+      jsonp({action:"update",id:r.id,memo:memo,payload:newPayload})
         .then(res=>{
-          if(res&&res.ok){m.className="savemsg ok";m.textContent="更新しました。";r.memo=val;if(listCache)renderList(listCache);b.disabled=false;}
+          if(res&&res.ok){m.className="savemsg ok";m.textContent="更新しました。";r.memo=memo;r.payload=newPayload;if(listCache)renderList(listCache);b.disabled=false;}
           else{m.className="savemsg err";m.textContent="失敗："+((res&&res.error)||"不明なエラー");b.disabled=false;}
         })
         .catch(e=>{m.className="savemsg err";m.textContent="通信失敗（"+e.message+"）";b.disabled=false;});
