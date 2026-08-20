@@ -728,10 +728,8 @@ function windowSectionHtml(items,startM){
   return `<div class="section-t">半年で実施すること（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div>${inner}`;
 }
 function editRowsHtml(items,startM,editable){
-  const order=items.map((it,idx)=>({it,idx})).sort((a,b)=>fyOffset(a.it.m,startM)-fyOffset(b.it.m,startM));
-  if(!order.length)return `<div class="erow" style="color:var(--muted)">項目がありません。下の「追加」から項目を足してください。</div>`;
-  const monthCount={};items.forEach(it=>{monthCount[it.m]=(monthCount[it.m]||0)+1;});
-  return order.map(({it,idx})=>{
+  if(!items.length)return `<div class="erow" style="color:var(--muted)">項目がありません。下の「追加」から項目を足してください。</div>`;
+  return items.map((it,idx)=>{
     const win=fyOffset(it.m,startM)<6;
     const monthSel=editable?`<select class="esel emonth" data-i="${idx}">${MONTHS.map((mm,k)=>`<option value="${k+1}" ${it.m===k+1?'selected':''}>${mm}</option>`).join("")}</select>`:`<span class="emonthlbl">${MONTHS[it.m-1]}</span>`;
     const chip=`<span class="tfunc ${FUNC_CLASS[it.func]||'f0'}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}`;
@@ -742,9 +740,11 @@ function editRowsHtml(items,startM,editable){
       templ=`<select class="esel etempl" data-i="${idx}"><option value="">（テンプレなし）</option>${list.map(tp=>`<option value="${esc(tp)}" ${it.template===tp?'selected':''}>${esc(tp)}</option>`).join("")}</select>`;
     }else if(it.template){templ=`<span class="etempllbl clk" data-tmpl="${esc(it.template)}">${esc(it.template)} ▸</span>`;}
     const view=it.template?`<button class="eicon" data-tmpl="${esc(it.template)}" title="テンプレの中身を表示">▸</button>`:'';
-    const reorder=(editable&&monthCount[it.m]>1)?`<span class="ereorder"><button class="eicon emv" data-i="${idx}" data-dir="-1" title="同じ月内で上へ">▲</button><button class="eicon emv" data-i="${idx}" data-dir="1" title="同じ月内で下へ">▼</button></span>`:'';
+    const up=(editable&&idx>0)?`<button class="eicon emv" data-i="${idx}" data-dir="-1" title="上へ">▲</button>`:'';
+    const down=(editable&&idx<items.length-1)?`<button class="eicon emv" data-i="${idx}" data-dir="1" title="下へ">▼</button>`:'';
+    const reorder=editable?`<span class="ereorder">${up}${down}</span>`:'';
     const del=editable?`<button class="eicon edel" data-i="${idx}" title="この項目を削除">×</button>`:'';
-    return `<div class="erow ${win?'win':''}">${monthSel}${chip}${title}${templ}${view}${reorder}${del}</div>`;
+    return `<div class="erow ${win?'win':''}"><span style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0">${monthSel}${chip}${title}${templ}${view}</span>${reorder}${del}</div>`;
   }).join("");
 }
 function addFormHtml(){
@@ -771,7 +771,7 @@ function renderPlanInto(container,items,startM,opts){
     container.querySelectorAll("input.etitle[data-i]").forEach(inp=>{inp.oninput=()=>{items[+inp.dataset.i].title=inp.value;if(opts.onChange)opts.onChange();};});
     container.querySelectorAll(".etempl").forEach(s=>{s.onchange=()=>{items[+s.dataset.i].template=s.value;if(opts.onChange)opts.onChange();};});
     container.querySelectorAll(".edel").forEach(b=>{b.onclick=()=>{items.splice(+b.dataset.i,1);rerender();};});
-    container.querySelectorAll(".emv").forEach(b=>{b.onclick=()=>{if(moveSameMonth(items,+b.dataset.i,+b.dataset.dir))rerender();};});
+    container.querySelectorAll(".emv").forEach(b=>{b.onclick=()=>{const i=+b.dataset.i,j=i+ +b.dataset.dir;if(j>=0&&j<items.length){const t=items[i];items[i]=items[j];items[j]=t;rerender();}};});
     const af=container.querySelector("#add-func");
     if(af)af.onchange=()=>{const tp=container.querySelector("#add-templ");const list=TEMPLATE_BY_FUNC[af.value]||[];tp.innerHTML=`<option value="">（テンプレなし）</option>`+list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");};
     const ab=container.querySelector("#add-btn");
@@ -807,7 +807,7 @@ function renderDailyInto(container,daily,startM,opts){
     const del=(editable&&d.custom)?`<button class="eicon edel-d" data-i="${i}" title="この日常機能を削除">×</button>`:'';
     return `<div class="drow ${win?'win':''}">${name}${monthSel}${tag}<span style="flex:1"></span>${up}${down}${del}</div>`;
   }).join("");
-  const addForm=editable?`<div class="eadd"><input class="etitle" id="dadd-name" placeholder="日常機能名（例：ヒヤリハット共有）" style="flex:0 1 220px"><select class="esel" id="dadd-month">${dailyMonthOpts(null)}</select><button class="btn primary eaddbtn" id="dadd-btn">＋ 追加</button></div>`:'';
+  const addForm=editable?`<div class="eadd"><input class="etitle" id="dadd-name" value="その他" placeholder="日常機能名（例：その他）" style="flex:0 1 220px"><select class="esel" id="dadd-month">${dailyMonthOpts(null)}</select><button class="btn primary eaddbtn" id="dadd-btn">＋ 追加</button></div>`:'';
   container.innerHTML=`<div class="section-t">日常機能の利用開始</div><div class="ehint">面談などのイベントとは別に、日常的に使う機能を「いつから使い始めるか」を設定します（契約開始＋半年に入る機能は「半年で開始」）。</div><div class="dailylist">${rows||'<div class="drow" style="color:var(--muted)">項目がありません</div>'}</div>${addForm}`;
   const rerender=()=>{renderDailyInto(container,daily,startM,opts);if(opts.onChange)opts.onChange();};
   if(editable){
@@ -838,7 +838,7 @@ function renderResult(){
       <button class="btn primary" id="sv-btn">この結果を保存</button>
       <div class="savemsg" id="sv-msg"></div>
     </div>`;
-  if(!state.planItems)state.planItems=clonePlan(buildPlan(state));
+  if(!state.planItems){state.planItems=clonePlan(buildPlan(state));state.planItems.sort((a,b)=>fyOffset(a.m,state.month)-fyOffset(b.m,state.month));}
   if(!state.daily)state.daily=initDaily();
   resultEl.innerHTML=planHeadHtml(state,state.month)+`<div id="plan-area"></div><div id="daily-area"></div>`+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
   renderPlanInto(document.getElementById("plan-area"),state.planItems,state.month,{editable:true});
@@ -969,7 +969,7 @@ function openPlan(r){
   const startM=base.month;
   let items;
   if(base.planItems&&base.planItems.length){items=base.planItems.map(x=>({m:x.m,func:x.func,title:x.title||"",template:x.template||"",alsoGoal:!!x.alsoGoal}));}
-  else if(startM){items=clonePlan(buildPlan({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM}));}
+  else if(startM){items=clonePlan(buildPlan({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM}));items.sort((a,b)=>fyOffset(a.m,startM)-fyOffset(b.m,startM));}
   else {items=[];}
   const daily=normDaily(base.daily);
   const editable=!!r.id;
