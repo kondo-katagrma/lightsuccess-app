@@ -62,10 +62,13 @@
   .memocell{max-width:240px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* プラン編集エディタ */
   .planbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:22px;flex-wrap:wrap}
-  .editlist{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:10px;background:var(--paper)}
-  .erow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-top:1px dashed var(--line)}
+  .editlist{border:1px solid var(--line);border-radius:14px;overflow-x:auto;margin-top:10px;background:var(--paper)}
+  .erow{display:grid;grid-template-columns:84px 96px minmax(120px,1fr) minmax(150px,1.1fr) 34px 46px 36px;gap:8px;align-items:center;padding:10px 12px;border-top:1px dashed var(--line)}
   .erow:first-child{border-top:none}
   .erow.win{background:var(--greenbg)}
+  .erow .esel,.erow .etitle{width:100%;min-width:0}
+  .erow .ereorder,.erow .edel,.erow .eview{justify-self:center}
+  .efunc{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
   .esel{font-family:inherit;font-size:12.5px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);cursor:pointer;max-width:100%}
   .etitle{font-family:inherit;font-size:13.5px;font-weight:600;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);flex:1;min-width:150px}
   .etitle:focus,.esel:focus{outline:none;border-color:var(--deep);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
@@ -728,7 +731,7 @@ function windowSectionHtml(items,startM){
   return `<div class="section-t">半年で実施すること（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div>${inner}`;
 }
 function editRowsHtml(items,startM,editable){
-  if(!items.length)return `<div class="erow" style="color:var(--muted)">項目がありません。下の「追加」から項目を足してください。</div>`;
+  if(!items.length)return `<div class="erow" style="grid-template-columns:1fr;color:var(--muted)">項目がありません。下の「追加」から項目を足してください。</div>`;
   return items.map((it,idx)=>{
     const win=fyOffset(it.m,startM)<6;
     const monthSel=editable?`<select class="esel emonth" data-i="${idx}">${MONTHS.map((mm,k)=>`<option value="${k+1}" ${it.m===k+1?'selected':''}>${mm}</option>`).join("")}</select>`:`<span class="emonthlbl">${MONTHS[it.m-1]}</span>`;
@@ -739,12 +742,12 @@ function editRowsHtml(items,startM,editable){
       const list=(TEMPLATE_BY_FUNC[it.func]||[]).slice();if(it.template&&list.indexOf(it.template)<0)list.unshift(it.template);
       templ=`<select class="esel etempl" data-i="${idx}"><option value="">（テンプレなし）</option>${list.map(tp=>`<option value="${esc(tp)}" ${it.template===tp?'selected':''}>${esc(tp)}</option>`).join("")}</select>`;
     }else if(it.template){templ=`<span class="etempllbl clk" data-tmpl="${esc(it.template)}">${esc(it.template)} ▸</span>`;}
-    const view=it.template?`<button class="eicon" data-tmpl="${esc(it.template)}" title="テンプレの中身を表示">▸</button>`:'';
+    const view=it.template?`<button class="eicon eview" data-tmpl="${esc(it.template)}" title="テンプレの中身を表示">▸</button>`:'';
     const up=(editable&&idx>0)?`<button class="eicon emv" data-i="${idx}" data-dir="-1" title="上へ">▲</button>`:'';
     const down=(editable&&idx<items.length-1)?`<button class="eicon emv" data-i="${idx}" data-dir="1" title="下へ">▼</button>`:'';
     const reorder=editable?`<span class="ereorder">${up}${down}</span>`:'';
     const del=editable?`<button class="eicon edel" data-i="${idx}" title="この項目を削除">×</button>`:'';
-    return `<div class="erow ${win?'win':''}"><span style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0">${monthSel}${chip}${title}${templ}${view}</span>${reorder}${del}</div>`;
+    return `<div class="erow ${win?'win':''}">${monthSel}<span class="efunc">${chip}</span>${title}${templ||'<span></span>'}${view||'<span></span>'}${reorder||'<span></span>'}${del||'<span></span>'}</div>`;
   }).join("");
 }
 function addFormHtml(){
