@@ -86,6 +86,10 @@
   .drow.win{background:var(--greenbg)}
   .dname{font-weight:700;font-size:14px;min-width:120px;flex:0 1 auto}
   .dtag{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--green);border-radius:5px;padding:2px 7px}
+  /* 並び替え */
+  .ereorder{display:inline-flex;flex-direction:column;gap:2px}
+  .ereorder .eicon{padding:0 7px;font-size:10px;line-height:1.5}
+  .dmv{padding:4px 9px;font-size:11px}
   .nav{display:flex;justify-content:space-between;margin-top:22px;gap:12px}
   .btn{font-family:inherit;font-size:14px;font-weight:700;padding:11px 22px;border-radius:10px;cursor:pointer;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);transition:all .15s}
   .btn:hover{background:var(--soft)}
@@ -699,6 +703,13 @@ const TEMPLATE_BY_FUNC={
 };
 function clonePlan(plan){return plan.map(it=>({m:it.m,func:it.func,title:it.title||"",template:it.template||"",alsoGoal:!!it.alsoGoal}));}
 function fyOffset(m,startM){return ((m-startM)+12)%12;}
+function moveSameMonth(items,i,dir){
+  const m=items[i].m,sib=[];
+  for(let k=0;k<items.length;k++)if(items[k].m===m)sib.push(k);
+  const pos=sib.indexOf(i),np=pos+dir;
+  if(np<0||np>=sib.length)return false;
+  const j=sib[np],t=items[i];items[i]=items[j];items[j]=t;return true;
+}
 function planHeadHtml(st,startM){
   const eff=effectiveFocuses(st.focuses||[]);
   const windowLast=MONTHS[((startM-1+5)%12)];
@@ -717,8 +728,9 @@ function windowSectionHtml(items,startM){
   return `<div class="section-t">半年で実施すること（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div>${inner}`;
 }
 function editRowsHtml(items,startM,editable){
-  const order=items.map((it,idx)=>({it,idx})).sort((a,b)=>fyOffset(a.it.m,startM)-fyOffset(b.it.m,startM)||funcOrder(a.it.func)-funcOrder(b.it.func));
+  const order=items.map((it,idx)=>({it,idx})).sort((a,b)=>fyOffset(a.it.m,startM)-fyOffset(b.it.m,startM));
   if(!order.length)return `<div class="erow" style="color:var(--muted)">項目がありません。下の「追加」から項目を足してください。</div>`;
+  const monthCount={};items.forEach(it=>{monthCount[it.m]=(monthCount[it.m]||0)+1;});
   return order.map(({it,idx})=>{
     const win=fyOffset(it.m,startM)<6;
     const monthSel=editable?`<select class="esel emonth" data-i="${idx}">${MONTHS.map((mm,k)=>`<option value="${k+1}" ${it.m===k+1?'selected':''}>${mm}</option>`).join("")}</select>`:`<span class="emonthlbl">${MONTHS[it.m-1]}</span>`;
@@ -730,8 +742,9 @@ function editRowsHtml(items,startM,editable){
       templ=`<select class="esel etempl" data-i="${idx}"><option value="">（テンプレなし）</option>${list.map(tp=>`<option value="${esc(tp)}" ${it.template===tp?'selected':''}>${esc(tp)}</option>`).join("")}</select>`;
     }else if(it.template){templ=`<span class="etempllbl clk" data-tmpl="${esc(it.template)}">${esc(it.template)} ▸</span>`;}
     const view=it.template?`<button class="eicon" data-tmpl="${esc(it.template)}" title="テンプレの中身を表示">▸</button>`:'';
+    const reorder=(editable&&monthCount[it.m]>1)?`<span class="ereorder"><button class="eicon emv" data-i="${idx}" data-dir="-1" title="同じ月内で上へ">▲</button><button class="eicon emv" data-i="${idx}" data-dir="1" title="同じ月内で下へ">▼</button></span>`:'';
     const del=editable?`<button class="eicon edel" data-i="${idx}" title="この項目を削除">×</button>`:'';
-    return `<div class="erow ${win?'win':''}">${monthSel}${chip}${title}${templ}${view}${del}</div>`;
+    return `<div class="erow ${win?'win':''}">${monthSel}${chip}${title}${templ}${view}${reorder}${del}</div>`;
   }).join("");
 }
 function addFormHtml(){
@@ -758,6 +771,7 @@ function renderPlanInto(container,items,startM,opts){
     container.querySelectorAll("input.etitle[data-i]").forEach(inp=>{inp.oninput=()=>{items[+inp.dataset.i].title=inp.value;if(opts.onChange)opts.onChange();};});
     container.querySelectorAll(".etempl").forEach(s=>{s.onchange=()=>{items[+s.dataset.i].template=s.value;if(opts.onChange)opts.onChange();};});
     container.querySelectorAll(".edel").forEach(b=>{b.onclick=()=>{items.splice(+b.dataset.i,1);rerender();};});
+    container.querySelectorAll(".emv").forEach(b=>{b.onclick=()=>{if(moveSameMonth(items,+b.dataset.i,+b.dataset.dir))rerender();};});
     const af=container.querySelector("#add-func");
     if(af)af.onchange=()=>{const tp=container.querySelector("#add-templ");const list=TEMPLATE_BY_FUNC[af.value]||[];tp.innerHTML=`<option value="">（テンプレなし）</option>`+list.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");};
     const ab=container.querySelector("#add-btn");
@@ -788,8 +802,10 @@ function renderDailyInto(container,daily,startM,opts){
     const name=(editable&&d.custom)?`<input class="etitle dname-in" data-i="${i}" value="${esc(d.name)}" style="flex:0 1 200px;min-width:120px">`:`<span class="dname">${esc(d.name)}</span>`;
     const monthSel=editable?`<select class="esel dmonth" data-i="${i}">${dailyMonthOpts(d.startM)}</select>`:`<span class="emonthlbl">${d.startM?MONTHS[d.startM-1]+'〜利用':'未設定'}</span>`;
     const tag=win?`<span class="dtag">半年で開始</span>`:'';
+    const up=(editable&&i>0)?`<button class="eicon dmv" data-i="${i}" data-dir="-1" title="上へ">▲</button>`:'';
+    const down=(editable&&i<daily.length-1)?`<button class="eicon dmv" data-i="${i}" data-dir="1" title="下へ">▼</button>`:'';
     const del=(editable&&d.custom)?`<button class="eicon edel-d" data-i="${i}" title="この日常機能を削除">×</button>`:'';
-    return `<div class="drow ${win?'win':''}">${name}${monthSel}${tag}${del}</div>`;
+    return `<div class="drow ${win?'win':''}">${name}${monthSel}${tag}<span style="flex:1"></span>${up}${down}${del}</div>`;
   }).join("");
   const addForm=editable?`<div class="eadd"><input class="etitle" id="dadd-name" placeholder="日常機能名（例：ヒヤリハット共有）" style="flex:0 1 220px"><select class="esel" id="dadd-month">${dailyMonthOpts(null)}</select><button class="btn primary eaddbtn" id="dadd-btn">＋ 追加</button></div>`:'';
   container.innerHTML=`<div class="section-t">日常機能の利用開始</div><div class="ehint">面談などのイベントとは別に、日常的に使う機能を「いつから使い始めるか」を設定します（契約開始＋半年に入る機能は「半年で開始」）。</div><div class="dailylist">${rows||'<div class="drow" style="color:var(--muted)">項目がありません</div>'}</div>${addForm}`;
@@ -798,6 +814,7 @@ function renderDailyInto(container,daily,startM,opts){
     container.querySelectorAll(".dmonth").forEach(s=>{s.onchange=()=>{daily[+s.dataset.i].startM=s.value?parseInt(s.value):null;rerender();};});
     container.querySelectorAll(".dname-in").forEach(inp=>{inp.oninput=()=>{daily[+inp.dataset.i].name=inp.value;if(opts.onChange)opts.onChange();};});
     container.querySelectorAll(".edel-d").forEach(b=>{b.onclick=()=>{daily.splice(+b.dataset.i,1);rerender();};});
+    container.querySelectorAll(".dmv").forEach(b=>{b.onclick=()=>{const i=+b.dataset.i,j=i+ +b.dataset.dir;if(j>=0&&j<daily.length){const t=daily[i];daily[i]=daily[j];daily[j]=t;rerender();}};});
     const ab=container.querySelector("#dadd-btn");
     if(ab)ab.onclick=()=>{const name=container.querySelector("#dadd-name").value.trim();if(!name)return;const mv=container.querySelector("#dadd-month").value;daily.push({name:name,startM:mv?parseInt(mv):null,custom:true});rerender();};
   }
