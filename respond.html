@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KatagrMa 導入アンケート</title>
+<style>
+  :root{
+    --ink:#12211F;--deep:#0F6E56;--teal:#1D9E75;--mist:#E1F5EE;--paper:#FFFFFF;--soft:#F4F7F5;
+    --line:#DCE4E1;--muted:#5F6B68;--amber:#BA7517;--amberbg:#FAEEDA;--green:#3B6D11;--greenbg:#EAF3DE;
+    --shadow:0 1px 3px rgba(15,110,86,.08);--red:#B4262B;--redbg:#FBE9E9;--line-strong:#C6D2CD;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:var(--ink);background:var(--soft);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 20px 80px}
+  header{margin-bottom:14px}
+  .brand{font-size:12px;font-weight:700;letter-spacing:.15em;color:var(--teal);text-transform:uppercase}
+  h1{font-size:24px;font-weight:700;margin-top:6px}
+  .lead{color:var(--muted);font-size:14px;margin-top:8px}
+  .steps{display:flex;gap:8px;margin:22px 0 8px}
+  .stepdot{flex:1;height:5px;border-radius:3px;background:var(--line);transition:background .25s}
+  .stepdot.done{background:var(--teal)}.stepdot.active{background:var(--deep)}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:var(--shadow);margin-top:18px}
+  .qnum{font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.08em}
+  .qtitle{font-size:19px;font-weight:700;margin:4px 0 4px}
+  .qhint{font-size:13px;color:var(--muted);margin-bottom:18px}
+  .opts{display:grid;gap:12px}
+  .opt{position:relative;text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;font-family:inherit;color:var(--ink)}
+  .opt:hover{border-color:var(--teal);background:var(--mist)}
+  .opt.sel{border-color:var(--deep);background:var(--mist);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  .opt.disabled{opacity:.4;cursor:not-allowed}
+  .opt.disabled:hover{border-color:var(--line);background:var(--paper)}
+  .opt .ot{font-size:15px;font-weight:700}
+  .opt .od{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .prio{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;background:var(--deep);color:#fff;font-size:13px;font-weight:700;display:none;align-items:center;justify-content:center}
+  .opt.sel .prio{display:flex}
+  .lvopts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  @media(max-width:620px){.lvopts{grid-template-columns:1fr}}
+  .lvopt{text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-family:inherit;color:var(--ink);transition:all .15s}
+  .lvopt:hover{border-color:var(--teal);background:var(--mist)}
+  .lvopt.sel{border-color:var(--deep);background:var(--mist)}
+  .lvopt .lt{font-size:13.5px;font-weight:700}
+  select.month,input.txt{width:100%;font-family:inherit;font-size:15px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink)}
+  select.month:focus,input.txt:focus{outline:none;border-color:var(--deep);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  textarea.txt{width:100%;font-family:inherit;font-size:15px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);resize:vertical;line-height:1.65;min-height:96px}
+  textarea.txt:focus{outline:none;border-color:var(--deep);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+  .nav{display:flex;justify-content:space-between;margin-top:22px;gap:12px}
+  .btn{font-family:inherit;font-size:14px;font-weight:700;padding:11px 22px;border-radius:10px;cursor:pointer;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);transition:all .15s}
+  .btn:hover{background:var(--soft)}
+  .btn.primary{background:var(--deep);color:#fff;border-color:var(--deep)}.btn.primary:hover{background:#0c5d49}
+  .btn:disabled{opacity:.4;cursor:not-allowed}.btn.ghost{border:none;color:var(--muted);background:transparent}
+  .hidden{display:none}
+  .selhint{font-size:12.5px;color:var(--deep);background:var(--mist);border:1px solid #9FE1CB;border-radius:10px;padding:10px 14px;margin-bottom:16px;line-height:1.5}
+  .flab{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px;display:block}
+  .req{color:var(--red);font-size:11px;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">KatagrMa</div>
+    <h1>導入に関するアンケート</h1>
+    <p class="lead" id="lead-text"></p>
+  </header>
+  <div class="steps" id="steps"></div>
+  <div id="quiz"></div>
+</div>
+
+<script>
+/* ============================================================
+   設定：Apps Script ウェブアプリのURLと「投稿専用」トークンをここに入れる。
+   ※ このファイルには CS用のフルアクセストークン（index.html の CONFIG.TOKEN）を
+     絶対に書かないこと。SUBMIT_TOKEN は Code.gs の SUBMIT_TOKEN と一致させる。
+   ============================================================ */
+const CONFIG={
+  API_URL:"https://script.google.com/a/macros/katagrma.co.jp/s/AKfycbz_-oK-iaXttqhRDLoX9xJ2-6qBtEgO0dsXzxRb-B3ANVGnNjgsLkrtEt7Wxj43UN8W/exec",
+  SUBMIT_TOKEN:"kata-ls-submit-2f91ab7c4e"
+};
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+
+const FOCUS_OPTS=[
+  {v:"育成",t:"職員の育成に力を入れたい",d:"目標に沿った成長支援を促進する。"},
+  {v:"モチベーション",t:"定期的なモチベーション管理を行っていきたい",d:"1on1で対話を重ね、意欲を引き出す。"},
+  {v:"困りごと",t:"職員の困りごとを把握し、早期フォローをしたい",d:"相談・要望を拾い、早期離職を防ぐ。"},
+  {v:"評価",t:"自己評価・振り返りのサイクルを整備したい",d:"自己評価を軸に、公平な振り返りの仕組みを作る。"},
+  {v:"目標",t:"目標の管理をしっかり行いたい",d:"目標設定・振り返りのサイクルを回す。"},
+];
+const MENDAN_FOCUSES=["育成","モチベーション","困りごと"];
+function effectiveFocuses(focuses){
+  const top=focuses.find(f=>MENDAN_FOCUSES.includes(f));
+  return focuses.filter(f=>!MENDAN_FOCUSES.includes(f)||f===top);
+}
+
+/* ===== 契約時アンケート相当の設問。index.html の SURVEY_STEPS と同じ内容を保つこと ===== */
+const FREQ_TIER={"4回以上/年":"上級者","2〜3回/年":"中級者","1回/年":"初級者","実施していない":"初級者"};
+const SURVEY_STEPS=[
+  {key:"mendan",title:"個人面談（1on1）の現状",fields:[
+    {id:"freq",short:"実施頻度",label:"現在の個人面談（1on1）の実施頻度をお答えください",type:"radio",opts:["実施していない","1回/年","2〜3回/年","4回以上/年"],required:true},
+    {id:"actor",short:"実施者",label:"面談は誰が実施していますか",type:"select",opts:["","施設長のみ","施設長と他役職者","施設長以外の役職者のみ","その他"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"record",short:"記録方法",label:"面談の記録はどのように残していますか",type:"select",opts:["","データ（Word・Excelなど）","紙媒体（メモ・ノート）","残していない","その他"],extraOptsRepeat:["カタグルマ（人財育成）"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"time",short:"1人あたりの時間",label:"1人あたりの面談にかける時間はどのくらいですか（平均するとどのくらいと感じますか）",type:"select",opts:["","〜30分","〜45分","〜1時間","1時間以上"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"worries",short:"課題・悩み",label:"面談について感じている課題・悩み（複数選択可）",type:"chips",opts:["何を聞いて良いか分からない","職員の本音を聞きだせていない気がする","面談時間が長くなってしまう・効率が悪い","育成につながる面談になっていない","特にない","その他"],
+      requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+  ]},
+  {key:"selfeval",title:"職員自己評価の現状",fields:[
+    {id:"freq",short:"実施頻度",label:"現在の職員自己評価の実施頻度をお答えください",type:"radio",opts:["実施していない","1回/年","2〜3回/年","4回以上/年"],required:true},
+    {id:"method",short:"実施方法",label:"職員自己評価の実施方法をお答えください",type:"select",opts:["","紙で配布","データ形式（グーグルフォームなど）","他社システム","その他"],extraOptsRepeat:["カタグルマ（人財育成）"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"time",short:"準備〜集計の時間",label:"1回の自己評価の準備〜回収・集計までにかかる時間はどのくらいですか",type:"select",opts:["","〜1週間","〜2週間","〜3週間","1ヶ月以上"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"worries",short:"課題・悩み",label:"自己評価について感じている課題・悩み（複数選択可）",type:"chips",opts:["準備〜集計に時間がかかる","結果を次につなげることができていない","職員の負担になっていると感じる","特にない","その他"],
+      requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+  ]},
+  {key:"goal",title:"職員個人目標の現状",fields:[
+    {id:"has",short:"実施状況",label:"個人目標の設定、運用をしていますか",type:"radio",opts:["実施している","実施したことがあるが現在はしていない","実施したことがない"],required:true},
+    {id:"feedback",short:"上司フィードバック",label:"目標に対して上司がフィードバックをする機会はありますか",type:"select",opts:["","計画的にスケジュールを組んでフィードバックしている","スケジュールは組まず何かのついでにフィードバックしている","フィードバックしているがやりきれない時がある","フィードバックを行えていない"],
+      showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
+    {id:"review",short:"本人振り返り",label:"目標を職員本人が振り返る機会は設けていますか",type:"select",opts:["","計画的にスケジュールを組んで振り返る機会を設けている","フィードバックするタイミングで振り返ってもらう","自身での振り返りがやりきれない時がある","振り返りを行えていない"],
+      showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
+    {id:"worries",short:"運用の課題・悩み",label:"個人目標の運用について感じている課題・悩み（複数選択可）",type:"chips",opts:["目標が立てっぱなしになってしまう","職員によって立てる目標の質が異なる","フィードバックするタイミングで忘れられてしまってる","何を基準に立ててもらったら良いか分からない","目標の提出に協力してもらえない","職員の負担になっていると感じる","その他"]},
+  ]},
+  {key:"training",title:"研修計画・研修報告の現状",fields:[
+    {id:"shared",short:"計画の共有",label:"職員の研修計画・報告は施設全体で共有していますか",type:"select",opts:["","共有している","共有していない"]},
+    {id:"format",short:"報告書の形式",label:"研修報告書の形式をお答えください",type:"select",opts:["","紙媒体で提出（手書き・Wordなど問わず）","データ形式","他社システム","報告書は書いていない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+    {id:"share",short:"報告書の共有",label:"研修報告書はどのように共有していますか",type:"select",opts:["","紙媒体をファイリングして施設内で保管し閲覧","クラウド上などでデータ保管し閲覧","他社システム","共有していない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+  ]},
+  {key:"meeting",title:"職員会議の現状",fields:[
+    {id:"freq",short:"開催頻度",label:"職員会議の開催頻度をお答えください（施設全体でお考えください）",type:"select",opts:["","実施していない","1回/月未満","1回/月","2〜4回/月","5回/月以上"]},
+    {id:"minutesFormat",short:"議事録の形式",label:"職員会議議事録の形式をお答えください",type:"select",opts:["","紙媒体","データ形式（Googleドキュメントなど）","他社システム","議事録は残していない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+    {id:"minutesShare",short:"議事録の共有",label:"議事録はどのように共有していますか",type:"select",opts:["","紙媒体をファイリングして施設内で保管し閲覧","クラウド上などでデータ保管し閲覧","プリントアウトして配布","他社システム","共有していない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+  ]},
+  {key:"other",title:"その他・優先機能・期待",fields:[
+    {id:"devices",short:"端末台数",label:"園内に職員が使用できる端末（パソコン・タブレット等）は何台ありますか（任意）",type:"text"},
+    {id:"otherDocs",short:"その他管理書類",label:"その他施設内で書類管理しているものがあれば教えてください（任意）",type:"text",firstOnly:true},
+    {id:"priority",short:"優先したい機能",label:"カタグルマで優先的に使っていきたいと考えている機能をお答えください（複数選択可）",type:"chips",opts:["職員データベース","個人面談","個人目標・計画","自己評価（職員・施設）","研修計画・報告","職員会議","事業計画・報告"]},
+    {id:"expectIssue",short:"業務課題への期待",label:"現状の業務課題に対してカタグルマ導入で期待していることをご記入ください（任意）",type:"textarea"},
+    {id:"expectGrowth",short:"人財育成への期待",label:"組織人財育成の質向上に対してカタグルマ導入で目指したいことをご記入ください（任意）",type:"textarea"},
+  ]},
+  {key:"effect",title:"次のステップ",repeatOnly:true,fields:[
+    {id:"nextSteps",short:"次のステップ",label:"次のステップとして取り組みたいことは何ですか（複数選択可）",type:"chips",opts:["職員データベース","個人面談","個人目標・計画","自己評価（職員・施設）","研修計画・報告","職員会議","事業計画・報告","特になし（現状維持）"]},
+  ]},
+];
+
+const state={step:0,hojin:"",visitType:"first",focuses:[],survey:{}};
+(function parseUrl(){
+  const q=new URLSearchParams(location.search);
+  state.hojin=(q.get("hojin")||"").trim();
+  state.visitType=q.get("visit")==="repeat"?"repeat":"first";
+})();
+
+function surveyOf(key){return state.survey[key]=state.survey[key]||{};}
+function deriveLevel(f,survey){
+  survey=survey||{};
+  if(f==="育成")return FREQ_TIER[(survey.mendan||{}).freq]||null;
+  if(f==="評価")return FREQ_TIER[(survey.selfeval||{}).freq]||null;
+  if(f==="目標"){const has=(survey.goal||{}).has;if(has==="実施している")return"中級者";if(has==="実施したことがあるが現在はしていない"||has==="実施したことがない")return"初級者";return null;}
+  return null;
+}
+function deriveLevels(survey){
+  const out={};["育成","評価","目標"].forEach(f=>{const v=deriveLevel(f,survey);if(v)out[f]=v;});
+  return out;
+}
+function levelsOf(st){return deriveLevels(st.survey);}
+function svFieldHtml(cfg,f,req){
+  const sv=surveyOf(cfg.key);
+  const labelHtml=esc(f.label)+(req?'<span class="req">必須</span>':'');
+  if(f.type==="radio"){
+    const opts=f.opts.map(o=>{const sel=sv[f.id]===o?" sel":"";return`<button class="lvopt sv-radio${sel}" data-key="${cfg.key}" data-id="${f.id}" data-v="${esc(o)}" style="padding:10px 12px"><div class="lt">${esc(o)}</div></button>`;}).join("");
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><div class="lvopts" style="grid-template-columns:repeat(${f.opts.length},1fr);margin-top:8px">${opts}</div></div>`;
+  }
+  if(f.type==="select"){
+    const opts=(f.extraOptsRepeat&&state.visitType==="repeat")?f.opts.concat(f.extraOptsRepeat):f.opts;
+    const options=opts.map(o=>`<option value="${esc(o)}" ${sv[f.id]===o?"selected":""}>${o?esc(o):"未設定"}</option>`).join("");
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><select class="esel sv-sel" data-key="${cfg.key}" data-id="${f.id}" style="width:100%;padding:10px 12px;margin-top:4px">${options}</select></div>`;
+  }
+  if(f.type==="chips"){
+    const sel=sv[f.id]||[];
+    const chips=f.opts.map(o=>{const on=sel.includes(o)?" sel":"";return `<button class="lvopt sv-chip${on}" data-key="${cfg.key}" data-id="${f.id}" data-v="${esc(o)}" style="padding:6px 10px">${esc(o)}</button>`;}).join("");
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chips}</div></div>`;
+  }
+  if(f.type==="text"){
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><input class="txt sv-text" data-key="${cfg.key}" data-id="${f.id}" value="${esc(sv[f.id]||"")}" style="margin-top:4px"></div>`;
+  }
+  if(f.type==="textarea"){
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><textarea class="txt sv-text" data-key="${cfg.key}" data-id="${f.id}" style="margin-top:4px;min-height:70px">${esc(sv[f.id]||"")}</textarea></div>`;
+  }
+  return "";
+}
+function svFieldVisible(sv,f){return !f.showIf||f.showIf(sv);}
+function svFieldRequired(sv,f){return !!(f.required||(f.requiredIf&&f.requiredIf(sv)));}
+function svFieldFilled(sv,f){const v=sv[f.id];if(f.type==="chips")return Array.isArray(v)&&v.length>0;return v!=null&&String(v).trim()!=="";}
+function svStepCanProceed(cfg){
+  const sv=surveyOf(cfg.key);
+  return cfg.fields.every(f=>{
+    if(!svFieldVisible(sv,f))return true;
+    if(!svFieldRequired(sv,f))return true;
+    return svFieldFilled(sv,f);
+  });
+}
+
+const quizEl=document.getElementById("quiz"),stepsEl=document.getElementById("steps");
+function stepList(){
+  const steps=SURVEY_STEPS.filter(s=>!s.repeatOnly||state.visitType==="repeat").map(s=>"survey:"+s.key);
+  steps.push("focus");
+  return steps;
+}
+function renderSteps(){
+  const n=stepList().length;
+  stepsEl.innerHTML="";
+  for(let i=0;i<n;i++){const d=document.createElement("div");d.className="stepdot"+(i<state.step?" done":"")+(i===state.step?" active":"");stepsEl.appendChild(d);}
+}
+function isLastStep(){return state.step===stepList().length-1;}
+function navHtml(cb,cn,lbl){return`<div class="nav"><button class="btn ghost" id="backbtn" ${cb?"":"style='visibility:hidden'"}>← 戻る</button><button class="btn primary" id="nextbtn" ${cn?"":"disabled"}>${lbl}</button></div>`;}
+function wireNav(on){document.getElementById("nextbtn").onclick=on;const bb=document.getElementById("backbtn");if(bb)bb.onclick=()=>{state.step--;render();};}
+
+function render(){
+  renderSteps();
+  const steps=stepList();
+  if(state.step>=steps.length)return renderSubmit();
+  const cur=steps[state.step];
+  if(cur.indexOf("survey:")===0){
+    const cfg=SURVEY_STEPS.find(s=>s.key===cur.slice(7));
+    return renderSurveyStep(cfg);
+  }
+  return renderFocus();
+}
+function renderSurveyStep(cfg){
+  const sv=surveyOf(cfg.key);
+  const fields=cfg.fields.filter(f=>(!f.firstOnly||state.visitType!=="repeat")&&svFieldVisible(sv,f));
+  const body=fields.map(f=>svFieldHtml(cfg,f,svFieldRequired(sv,f))).join("");
+  const hint=cfg.repeatOnly?"前回からの状況をふまえてお答えください（すべて任意）。":"今の状況に近いものをお答えください（＊は必須項目です）。";
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${state.step+1}</div><div class="qtitle">${esc(cfg.title)}</div><div class="qhint">${hint}</div>${body}${navHtml(state.step>0,svStepCanProceed(cfg),isLastStep()?"回答を送信する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".sv-radio").forEach(b=>{b.onclick=()=>{surveyOf(b.dataset.key)[b.dataset.id]=b.dataset.v;renderSurveyStep(cfg);};});
+  quizEl.querySelectorAll(".sv-chip").forEach(b=>{b.onclick=()=>{const sv2=surveyOf(b.dataset.key);const arr=sv2[b.dataset.id]=sv2[b.dataset.id]||[];const v=b.dataset.v;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);renderSurveyStep(cfg);};});
+  quizEl.querySelectorAll(".sv-sel").forEach(s=>{s.onchange=()=>{surveyOf(s.dataset.key)[s.dataset.id]=s.value;const nb=document.getElementById("nextbtn");if(nb)nb.disabled=!svStepCanProceed(cfg);};});
+  quizEl.querySelectorAll(".sv-text").forEach(inp=>{inp.oninput=()=>{surveyOf(inp.dataset.key)[inp.dataset.id]=inp.value;const nb=document.getElementById("nextbtn");if(nb)nb.disabled=!svStepCanProceed(cfg);};});
+  wireNav(()=>{state.step++;render();});
+}
+function renderFocus(){
+  const full=state.focuses.length>=2;
+  const opts=FOCUS_OPTS.map(o=>{const idx=state.focuses.indexOf(o.v);const sel=idx>=0?" sel":"";const dis=(full&&idx<0)?" disabled":"";return`<button class="opt${sel}${dis}" data-v="${o.v}"><div class="prio">${idx>=0?idx+1:""}</div><div class="ot">${o.t}</div><div class="od">${o.d}</div></button>`;}).join("");
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${state.step+1}</div><div class="qtitle">今年度は、どのような目的・テーマでマネジメント業務をすすめていきたいですか？</div><div class="qhint">最大2つまで選べます。タップした順が優先順位（①②）です。</div><div class="selhint">タップで選択／もう一度タップで解除。</div><div class="opts">${opts}</div>${navHtml(state.step>0,state.focuses.length>0,isLastStep()?"回答を送信する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".opt").forEach(b=>{b.onclick=()=>{const v=b.dataset.v,i=state.focuses.indexOf(v);if(i>=0)state.focuses.splice(i,1);else{if(state.focuses.length>=2)return;state.focuses.push(v);}renderFocus();};});
+  wireNav(()=>{if(state.focuses.length){state.step++;render();}});
+}
+
+/* ===== 送信 ===== */
+function jsonp(params){
+  return new Promise((resolve,reject)=>{
+    if(!CONFIG.API_URL){reject(new Error("NO_API"));return;}
+    const cb="__cb"+Math.random().toString(36).slice(2);
+    const s=document.createElement("script");
+    let done=false;
+    const cleanup=()=>{try{delete window[cb];}catch(e){window[cb]=undefined;}s.remove();};
+    window[cb]=(data)=>{done=true;resolve(data);cleanup();};
+    s.onerror=()=>{if(!done){reject(new Error("NETWORK"));cleanup();}};
+    const q=new URLSearchParams(Object.assign({},params,{callback:cb,token:CONFIG.SUBMIT_TOKEN})).toString();
+    s.src=CONFIG.API_URL+"?"+q;
+    document.body.appendChild(s);
+    setTimeout(()=>{if(!done){reject(new Error("TIMEOUT"));cleanup();}},15000);
+  });
+}
+function focusesText(){return state.focuses.map((f,i)=>`${i+1}.${f}`).join(" / ");}
+function levelsText(){const lv=levelsOf(state);const ks=Object.keys(lv);return ks.length?ks.map(k=>`${k}:${lv[k]}`).join(" / "):"—";}
+function renderSubmit(){
+  stepsEl.innerHTML="";
+  quizEl.innerHTML=`<div class="card"><div class="qtitle">送信中…</div></div>`;
+  doSubmit();
+}
+function doSubmit(){
+  const params={
+    action:"submitSurvey",
+    hojin:state.hojin,
+    date:todayStr(),
+    author:"",
+    focusesText:focusesText(),
+    levelsText:levelsText(),
+    payload:JSON.stringify({focuses:state.focuses,survey:state.survey,visitType:state.visitType}),
+  };
+  jsonp(params)
+    .then(res=>{
+      if(res&&res.ok){
+        quizEl.innerHTML=`<div class="card"><div class="qtitle">ご回答ありがとうございました</div><div class="qhint">送信が完了しました。担当のカスタマーサクセスが内容を確認し、今後のご案内に活用させていただきます。</div></div>`;
+      }else{
+        showRetry((res&&res.error)||"時間をおいて再度お試しください。");
+      }
+    })
+    .catch(e=>showRetry(e.message+"（インターネット接続をご確認ください）"));
+}
+function showRetry(msg){
+  quizEl.innerHTML=`<div class="card"><div class="qtitle">送信に失敗しました</div><div class="qhint">${esc(msg)}</div><div class="nav"><span></span><button class="btn primary" id="retry-btn">再送信</button></div></div>`;
+  document.getElementById("retry-btn").onclick=doSubmit;
+}
+
+/* ===== 起動 ===== */
+if(!state.hojin){
+  document.getElementById("lead-text").textContent="URLが正しくありません。担当のカスタマーサクセスにご確認ください。";
+}else{
+  document.getElementById("lead-text").textContent=`「${state.hojin}」様向けのアンケートです。より良いご提案のため、いくつか質問にお答えください。`;
+  render();
+}
+</script>
+</body>
+</html>

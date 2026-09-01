@@ -156,6 +156,12 @@
   table.rec tbody tr:hover{background:var(--mist)}
   table.rec .hj{font-weight:700}
   .tag{display:inline-block;font-size:11px;font-weight:700;background:var(--mist);color:var(--deep);border-radius:5px;padding:2px 7px;margin:1px 3px 1px 0}
+  table.cmp{width:100%;border-collapse:collapse;font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table.cmp th,table.cmp td{padding:8px 10px;text-align:left;border-top:1px solid var(--line);vertical-align:top;white-space:pre-wrap}
+  table.cmp thead th{background:var(--soft);font-size:12px;color:var(--muted);white-space:nowrap}
+  table.cmp .cmpsec{background:var(--soft);font-weight:700;font-size:12px;color:var(--deep)}
+  table.cmp .cmpchanged{background:var(--amberbg);font-weight:700}
+  table.cmp .cmpempty{color:var(--muted)}
   .rowbtn{font-family:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);color:var(--deep);cursor:pointer;white-space:nowrap}
   .rowbtn:hover{background:var(--mist);border-color:var(--teal)}
   .empty{text-align:center;color:var(--muted);font-size:14px;padding:40px 20px}
@@ -232,6 +238,14 @@
   </div>
 </div>
 
+<!-- 同一法人の経年比較モーダル -->
+<div class="modal" id="cmpmodal">
+  <div class="modalbox" style="max-width:1100px">
+    <div class="modalhead"><h3 id="cmpmodal-title">経年比較</h3><button class="closex" id="cmpmodal-close">閉じる</button></div>
+    <div id="cmpmodal-body" style="overflow-x:auto"></div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    設定：Apps Script ウェブアプリのURLとトークンをここに入れる
@@ -239,7 +253,8 @@
    ============================================================ */
 const CONFIG={
   API_URL:"https://script.google.com/a/macros/katagrma.co.jp/s/AKfycbz_-oK-iaXttqhRDLoX9xJ2-6qBtEgO0dsXzxRb-B3ANVGnNjgsLkrtEt7Wxj43UN8W/exec",
-  TOKEN:"kata-ls-8995de7ce34c"    // Code.gs の TOKEN と必ず一致させる（設定済み）
+  TOKEN:"kata-ls-8995de7ce34c"    // Code.gs の TOKEN と必ず一致させる（CS専用・全操作）。
+  // 顧客回答URL専用の SUBMIT_TOKEN はこのファイルには置かない（respond.html 側のみに埋め込む）。
 };
 
 const MONTHS=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
@@ -453,23 +468,144 @@ const FOCUS_OPTS=[
 const MENDAN_FOCUSES=["育成","モチベーション","困りごと"];
 function funcOf(f){if(f==="評価")return"自己評価";if(f==="目標")return"目標管理";return"面談";}
 
-const LEVEL_DEFS={
-  "育成":{label:"個人面談の実施経験",opts:[
-    {v:"上級者",lt:"3ヶ月に1回以上",ld:""},
-    {v:"中級者",lt:"半年に1回程度",ld:""},
-    {v:"初級者",lt:"年1回以下／これから",ld:""},
+/* ===== 契約時アンケート相当の現状ヒアリング（診断の最初に網羅的に聞く） =====
+   ここで集めた実施頻度から、育成／評価／目標の「実施レベル」を自動判定する（FREQ_TIER参照）。
+   自由記述・任意項目以外もスケジュール判定には使わない付帯情報として保存・表示する。 */
+const FREQ_TIER={"4回以上/年":"上級者","2〜3回/年":"中級者","1回/年":"初級者","実施していない":"初級者"};
+const SURVEY_STEPS=[
+  {key:"mendan",title:"個人面談（1on1）の現状",fields:[
+    {id:"freq",short:"実施頻度",label:"現在の個人面談（1on1）の実施頻度をお答えください",type:"radio",opts:["実施していない","1回/年","2〜3回/年","4回以上/年"],required:true},
+    {id:"actor",short:"実施者",label:"面談は誰が実施していますか",type:"select",opts:["","施設長のみ","施設長と他役職者","施設長以外の役職者のみ","その他"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"record",short:"記録方法",label:"面談の記録はどのように残していますか",type:"select",opts:["","データ（Word・Excelなど）","紙媒体（メモ・ノート）","残していない","その他"],extraOptsRepeat:["カタグルマ（人財育成）"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"time",short:"1人あたりの時間",label:"1人あたりの面談にかける時間はどのくらいですか（平均するとどのくらいと感じますか）",type:"select",opts:["","〜30分","〜45分","〜1時間","1時間以上"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"worries",short:"課題・悩み",label:"面談について感じている課題・悩み（複数選択可）",type:"chips",opts:["何を聞いて良いか分からない","職員の本音を聞きだせていない気がする","面談時間が長くなってしまう・効率が悪い","育成につながる面談になっていない","特にない","その他"],
+      requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
   ]},
-  "評価":{label:"職員自己評価の実施経験",opts:[
-    {v:"上級者",lt:"年3回以上",ld:""},
-    {v:"中級者",lt:"年2回程度",ld:""},
-    {v:"初級者",lt:"年1回以下／これから",ld:""},
+  {key:"selfeval",title:"職員自己評価の現状",fields:[
+    {id:"freq",short:"実施頻度",label:"現在の職員自己評価の実施頻度をお答えください",type:"radio",opts:["実施していない","1回/年","2〜3回/年","4回以上/年"],required:true},
+    {id:"method",short:"実施方法",label:"職員自己評価の実施方法をお答えください",type:"select",opts:["","紙で配布","データ形式（グーグルフォームなど）","他社システム","その他"],extraOptsRepeat:["カタグルマ（人財育成）"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"time",short:"準備〜集計の時間",label:"1回の自己評価の準備〜回収・集計までにかかる時間はどのくらいですか",type:"select",opts:["","〜1週間","〜2週間","〜3週間","1ヶ月以上"],
+      showIf:sv=>!!sv.freq&&sv.freq!=="実施していない",requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
+    {id:"worries",short:"課題・悩み",label:"自己評価について感じている課題・悩み（複数選択可）",type:"chips",opts:["準備〜集計に時間がかかる","結果を次につなげることができていない","職員の負担になっていると感じる","特にない","その他"],
+      requiredIf:sv=>!!sv.freq&&sv.freq!=="実施していない"},
   ]},
-  "目標":{label:"目標管理の実施経験",opts:[
-    {v:"上級者",lt:"実施してきた",ld:""},
-    {v:"中級者",lt:"部分的に実施",ld:""},
-    {v:"初級者",lt:"初めて（1年単位でまず始める）",ld:""},
+  {key:"goal",title:"職員個人目標の現状",fields:[
+    {id:"has",short:"実施状況",label:"個人目標の設定、運用をしていますか",type:"radio",opts:["実施している","実施したことがあるが現在はしていない","実施したことがない"],required:true},
+    {id:"feedback",short:"上司フィードバック",label:"目標に対して上司がフィードバックをする機会はありますか",type:"select",opts:["","計画的にスケジュールを組んでフィードバックしている","スケジュールは組まず何かのついでにフィードバックしている","フィードバックしているがやりきれない時がある","フィードバックを行えていない"],
+      showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
+    {id:"review",short:"本人振り返り",label:"目標を職員本人が振り返る機会は設けていますか",type:"select",opts:["","計画的にスケジュールを組んで振り返る機会を設けている","フィードバックするタイミングで振り返ってもらう","自身での振り返りがやりきれない時がある","振り返りを行えていない"],
+      showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
+    {id:"worries",short:"運用の課題・悩み",label:"個人目標の運用について感じている課題・悩み（複数選択可）",type:"chips",opts:["目標が立てっぱなしになってしまう","職員によって立てる目標の質が異なる","フィードバックするタイミングで忘れられてしまってる","何を基準に立ててもらったら良いか分からない","目標の提出に協力してもらえない","職員の負担になっていると感じる","その他"]},
   ]},
-};
+  {key:"training",title:"研修計画・研修報告の現状",fields:[
+    {id:"shared",short:"計画の共有",label:"職員の研修計画・報告は施設全体で共有していますか",type:"select",opts:["","共有している","共有していない"]},
+    {id:"format",short:"報告書の形式",label:"研修報告書の形式をお答えください",type:"select",opts:["","紙媒体で提出（手書き・Wordなど問わず）","データ形式","他社システム","報告書は書いていない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+    {id:"share",short:"報告書の共有",label:"研修報告書はどのように共有していますか",type:"select",opts:["","紙媒体をファイリングして施設内で保管し閲覧","クラウド上などでデータ保管し閲覧","他社システム","共有していない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+  ]},
+  {key:"meeting",title:"職員会議の現状",fields:[
+    {id:"freq",short:"開催頻度",label:"職員会議の開催頻度をお答えください（施設全体でお考えください）",type:"select",opts:["","実施していない","1回/月未満","1回/月","2〜4回/月","5回/月以上"]},
+    {id:"minutesFormat",short:"議事録の形式",label:"職員会議議事録の形式をお答えください",type:"select",opts:["","紙媒体","データ形式（Googleドキュメントなど）","他社システム","議事録は残していない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+    {id:"minutesShare",short:"議事録の共有",label:"議事録はどのように共有していますか",type:"select",opts:["","紙媒体をファイリングして施設内で保管し閲覧","クラウド上などでデータ保管し閲覧","プリントアウトして配布","他社システム","共有していない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
+  ]},
+  {key:"other",title:"その他・優先機能・期待",fields:[
+    {id:"devices",short:"端末台数",label:"園内に職員が使用できる端末（パソコン・タブレット等）は何台ありますか（任意）",type:"text"},
+    {id:"otherDocs",short:"その他管理書類",label:"その他施設内で書類管理しているものがあれば教えてください（任意）",type:"text",firstOnly:true},
+    {id:"priority",short:"優先したい機能",label:"カタグルマで優先的に使っていきたいと考えている機能をお答えください（複数選択可）",type:"chips",opts:["職員データベース","個人面談","個人目標・計画","自己評価（職員・施設）","研修計画・報告","職員会議","事業計画・報告"]},
+    {id:"expectIssue",short:"業務課題への期待",label:"現状の業務課題に対してカタグルマ導入で期待していることをご記入ください（任意）",type:"textarea"},
+    {id:"expectGrowth",short:"人財育成への期待",label:"組織人財育成の質向上に対してカタグルマ導入で目指したいことをご記入ください（任意）",type:"textarea"},
+  ]},
+  {key:"effect",title:"次のステップ",repeatOnly:true,fields:[
+    {id:"nextSteps",short:"次のステップ",label:"次のステップとして取り組みたいことは何ですか（複数選択可）",type:"chips",opts:["職員データベース","個人面談","個人目標・計画","自己評価（職員・施設）","研修計画・報告","職員会議","事業計画・報告","特になし（現状維持）"]},
+  ]},
+];
+function surveyOf(key){return state.survey[key]=state.survey[key]||{};}
+function deriveLevel(f,survey){
+  survey=survey||{};
+  if(f==="育成")return FREQ_TIER[(survey.mendan||{}).freq]||null;
+  if(f==="評価")return FREQ_TIER[(survey.selfeval||{}).freq]||null;
+  if(f==="目標"){const has=(survey.goal||{}).has;if(has==="実施している")return"中級者";if(has==="実施したことがあるが現在はしていない"||has==="実施したことがない")return"初級者";return null;}
+  return null;
+}
+function deriveLevels(survey){
+  const out={};["育成","評価","目標"].forEach(f=>{const v=deriveLevel(f,survey);if(v)out[f]=v;});
+  return out;
+}
+function levelsOf(st){return st.survey?deriveLevels(st.survey):(st.levels||{});}
+function svFieldHtml(cfg,f,req){
+  const sv=surveyOf(cfg.key);
+  const labelHtml=esc(f.label)+(req?'<span class="req">必須</span>':'');
+  if(f.type==="radio"){
+    const opts=f.opts.map(o=>{const sel=sv[f.id]===o?" sel":"";return`<button class="lvopt sv-radio${sel}" data-key="${cfg.key}" data-id="${f.id}" data-v="${esc(o)}" style="padding:10px 12px"><div class="lt">${esc(o)}</div></button>`;}).join("");
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><div class="lvopts" style="grid-template-columns:repeat(${f.opts.length},1fr);margin-top:8px">${opts}</div></div>`;
+  }
+  if(f.type==="select"){
+    const opts=(f.extraOptsRepeat&&state.visitType==="repeat")?f.opts.concat(f.extraOptsRepeat):f.opts;
+    const options=opts.map(o=>`<option value="${esc(o)}" ${sv[f.id]===o?"selected":""}>${o?esc(o):"未設定"}</option>`).join("");
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><select class="esel sv-sel" data-key="${cfg.key}" data-id="${f.id}" style="width:100%;padding:10px 12px;margin-top:4px">${options}</select></div>`;
+  }
+  if(f.type==="chips"){
+    const sel=sv[f.id]||[];
+    const chips=f.opts.map(o=>{const on=sel.includes(o)?" sel":"";return `<button class="lvopt sv-chip${on}" data-key="${cfg.key}" data-id="${f.id}" data-v="${esc(o)}" style="padding:6px 10px">${esc(o)}</button>`;}).join("");
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chips}</div></div>`;
+  }
+  if(f.type==="text"){
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><input class="txt sv-text" data-key="${cfg.key}" data-id="${f.id}" value="${esc(sv[f.id]||"")}" style="margin-top:4px"></div>`;
+  }
+  if(f.type==="textarea"){
+    return `<div style="margin-top:16px"><label class="flab">${labelHtml}</label><textarea class="txt sv-text" data-key="${cfg.key}" data-id="${f.id}" style="margin-top:4px;min-height:70px">${esc(sv[f.id]||"")}</textarea></div>`;
+  }
+  return "";
+}
+function svFieldVisible(sv,f){return !f.showIf||f.showIf(sv);}
+function svFieldRequired(sv,f){return !!(f.required||(f.requiredIf&&f.requiredIf(sv)));}
+function svFieldFilled(sv,f){const v=sv[f.id];if(f.type==="chips")return Array.isArray(v)&&v.length>0;return v!=null&&String(v).trim()!=="";}
+function svStepCanProceed(cfg){
+  const sv=surveyOf(cfg.key);
+  return cfg.fields.every(f=>{
+    if(!svFieldVisible(sv,f))return true;
+    if(!svFieldRequired(sv,f))return true;
+    return svFieldFilled(sv,f);
+  });
+}
+function renderSurveyStep(cfg){
+  const sv=surveyOf(cfg.key);
+  const fields=cfg.fields.filter(f=>(!f.firstOnly||state.visitType!=="repeat")&&svFieldVisible(sv,f));
+  const body=fields.map(f=>svFieldHtml(cfg,f,svFieldRequired(sv,f))).join("");
+  const hint=cfg.repeatOnly?"前回からの変化は「経年比較」で確認できます。ここでは次に取り組みたいことだけをお聞きします。":"契約時アンケートに相当する設問です。今の状況に近いものをお答えください（＊は必須項目です）。";
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${state.step+1}</div><div class="qtitle">${esc(cfg.title)}</div><div class="qhint">${hint}</div>${body}${navHtml(state.step>0,svStepCanProceed(cfg),isLastStep()?"診断する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".sv-radio").forEach(b=>{b.onclick=()=>{surveyOf(b.dataset.key)[b.dataset.id]=b.dataset.v;renderSurveyStep(cfg);};});
+  quizEl.querySelectorAll(".sv-chip").forEach(b=>{b.onclick=()=>{const sv2=surveyOf(b.dataset.key);const arr=sv2[b.dataset.id]=sv2[b.dataset.id]||[];const v=b.dataset.v;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);renderSurveyStep(cfg);};});
+  quizEl.querySelectorAll(".sv-sel").forEach(s=>{s.onchange=()=>{surveyOf(s.dataset.key)[s.dataset.id]=s.value;const nb=document.getElementById("nextbtn");if(nb)nb.disabled=!svStepCanProceed(cfg);};});
+  quizEl.querySelectorAll(".sv-text").forEach(inp=>{inp.oninput=()=>{surveyOf(inp.dataset.key)[inp.dataset.id]=inp.value;const nb=document.getElementById("nextbtn");if(nb)nb.disabled=!svStepCanProceed(cfg);};});
+  wireNav(()=>{state.step++;render();});
+}
+function surveySummaryHtml(st){
+  const survey=st.survey||{};
+  const levels=levelsOf(st);
+  let rows="";
+  const levelLabel={育成:"育成レベル判定",評価:"評価レベル判定",目標:"目標レベル判定"};
+  const levelParts=Object.keys(levelLabel).filter(f=>levels[f]).map(f=>levelLabel[f]+"："+levels[f]);
+  if(levelParts.length)rows+=`<div class="qitem"><div class="qcat">レベル判定</div><div class="qq">${levelParts.map(esc).join("<br>")}</div></div>`;
+  const priorityField=(SURVEY_STEPS.find(s=>s.key==="other")||{fields:[]}).fields.find(f=>f.id==="priority");
+  if(priorityField){
+    const pv=svValStr(survey,"other",priorityField);
+    if(pv)rows+=`<div class="qitem" style="border:1.5px solid var(--teal)"><div class="qcat">優先したい機能</div><div class="qq">${esc(pv)}</div></div>`;
+  }
+  SURVEY_STEPS.forEach(cfg=>{
+    const fields=cfg.key==="other"?cfg.fields.filter(f=>f.id!=="priority"):cfg.fields;
+    const parts=fields.map(f=>{
+      const v=svValStr(survey,cfg.key,f);
+      return v?(f.short||f.label)+"："+v:null;
+    }).filter(Boolean);
+    if(parts.length)rows+=`<div class="qitem"><div class="qcat">${esc(cfg.title)}</div><div class="qq">${parts.map(esc).join("<br>")}</div></div>`;
+  });
+  if(!rows)return "";
+  return `<div class="section-t">契約時アンケートの記録</div><div class="note" style="background:var(--paper);border:1px solid var(--line)">${rows}</div>`;
+}
 
 function canChooseCycle(f,level){
   if(!["育成","評価","目標"].includes(f))return false;
@@ -488,7 +624,7 @@ function resolveGoal(level,cycle){
   return cycle==="学期"?GOAL.gakki:GOAL.hanki;
 }
 
-const state={phase:"start",step:0,focuses:[],levels:{},cycle:null,month:null,hojin:"",author:"",date:"",memo:"",savedId:"",planItems:null,daily:null};
+const state={phase:"start",step:0,focuses:[],cycle:null,month:null,hojin:"",author:"",date:"",memo:"",savedId:"",planItems:null,daily:null,survey:{},visitType:"first"};
 let hojinList=null;
 
 const quizEl=document.getElementById("quiz"),resultEl=document.getElementById("result"),stepsEl=document.getElementById("steps");
@@ -500,15 +636,12 @@ function effectiveFocuses(focuses){
 }
 function needCycle(){
   const eff=effectiveFocuses(state.focuses);
-  return eff.some(f=>canChooseCycle(f,state.levels[f]));
-}
-function levelFocuses(){
-  const eff=effectiveFocuses(state.focuses);
-  return eff.filter(f=>["育成","評価","目標"].includes(f));
+  const lv=levelsOf(state);
+  return eff.some(f=>canChooseCycle(f,lv[f]));
 }
 function stepList(){
-  const steps=["focus"];
-  if(levelFocuses().length>0)steps.push("level");
+  const steps=SURVEY_STEPS.filter(s=>!s.repeatOnly||state.visitType==="repeat").map(s=>"survey:"+s.key);
+  steps.push("focus");
   if(needCycle())steps.push("cycle");
   steps.push("month");
   return steps;
@@ -523,8 +656,11 @@ function render(){
   renderSteps();
   const steps=stepList();
   const cur=steps[state.step];
+  if(cur.indexOf("survey:")===0){
+    const cfg=SURVEY_STEPS.find(s=>s.key===cur.slice(7));
+    return renderSurveyStep(cfg);
+  }
   if(cur==="focus")return renderFocus();
-  if(cur==="level")return renderLevel();
   if(cur==="cycle")return renderCycle();
   if(cur==="month")return renderMonth();
   return renderResult();
@@ -567,12 +703,27 @@ function renderStart(){
       <div><label class="flab">記入者（担当CS）</label><input class="txt" id="st-author" value="${esc(state.author)}" placeholder="例：近藤"></div>
       <div><label class="flab">実施日</label><input class="txt" id="st-date" type="date" value="${esc(state.date)}"></div>
     </div>
+    <div style="margin-bottom:14px">
+      <label class="flab">診断の種類</label>
+      <div class="opts" style="grid-template-columns:1fr 1fr">
+        <button type="button" class="opt${state.visitType!=="repeat"?" sel":""}" id="st-visit-first"><div class="ot">初回の診断</div><div class="od">契約時の状況を網羅的にヒアリングします。</div></button>
+        <button type="button" class="opt${state.visitType==="repeat"?" sel":""}" id="st-visit-repeat"><div class="ot">2回目以降（フォローアップ）</div><div class="od">端末台数など変わりにくい項目は省略し、前回からの変化・効果測定を中心に聞きます。</div></button>
+      </div>
+    </div>
     <div class="nav"><span></span><button class="btn primary" id="st-next" disabled>診断を開始 →</button></div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+      <div class="qhint" style="margin-bottom:8px">この画面でCS自身が診断する代わりに、法人に直接答えてもらうこともできます。上の法人名・診断の種類を選んでから発行してください（プラン・レベル判定などCS向けの結果は法人には表示されません）。</div>
+      <button class="btn sm ghost" id="st-genurl">📋 この法人の回答URLを発行してコピー</button>
+      <div class="qhint" id="st-genurl-msg" style="margin-top:8px"></div>
+    </div>
   </div>`;
   const inp=document.getElementById("st-hojin-new");
   const nextBtn=document.getElementById("st-next");
   const sync=()=>{nextBtn.disabled=!inp.value.trim();};
   inp.oninput=sync;inp.onchange=sync;sync();
+  const vFirst=document.getElementById("st-visit-first"),vRepeat=document.getElementById("st-visit-repeat");
+  vFirst.onclick=()=>{state.visitType="first";vFirst.classList.add("sel");vRepeat.classList.remove("sel");};
+  vRepeat.onclick=()=>{state.visitType="repeat";vRepeat.classList.add("sel");vFirst.classList.remove("sel");};
   nextBtn.onclick=()=>{
     const h=inp.value.trim();if(!h)return;
     state.hojin=h;
@@ -581,29 +732,29 @@ function renderStart(){
     state.phase="diagnose";state.step=0;state.savedId="";state.memo="";state.planItems=null;state.daily=null;
     render();
   };
+  document.getElementById("st-genurl").onclick=async ()=>{
+    const h=inp.value.trim();
+    const msg=document.getElementById("st-genurl-msg");
+    if(!h){msg.textContent="先に法人名を入力してください。";inp.focus();return;}
+    const u=new URL("respond.html",location.href);
+    u.searchParams.set("hojin",h);
+    u.searchParams.set("visit",state.visitType);
+    const url=u.toString();
+    try{
+      await navigator.clipboard.writeText(url);
+      msg.innerHTML=`コピーしました（${esc(state.visitType==="repeat"?"2回目以降":"初回")}用）：<br><span style="word-break:break-all">${esc(url)}</span>`;
+    }catch(e){
+      msg.innerHTML=`コピーに失敗しました。下のURLを手動でコピーしてください：<br><span style="word-break:break-all">${esc(url)}</span>`;
+    }
+  };
 }
 
 function renderFocus(){
   const full=state.focuses.length>=2;
   const opts=FOCUS_OPTS.map(o=>{const idx=state.focuses.indexOf(o.v);const sel=idx>=0?" sel":"";const dis=(full&&idx<0)?" disabled":"";return`<button class="opt${sel}${dis}" data-v="${o.v}"><div class="prio">${idx>=0?idx+1:""}</div><div class="ot">${o.t}</div><div class="od">${o.d}</div></button>`;}).join("");
-  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP 1</div><div class="qtitle">今年度は、どのような目的・テーマでマネジメント業務をすすめていきたいですか？</div><div class="qhint">最大2つまで選べます。タップした順が優先順位（①②）です。面談に関わる観点（育成・モチベーション・困りごと）を2つ選んだ場合は、優先順位が高い1つの面談プランのみを反映します。</div><div class="selhint">タップで選択／もう一度タップで解除。</div><div class="opts">${opts}</div>${navHtml(false,state.focuses.length>0,isLastStep()?"診断する":"次へ →")}</div>`;
-  quizEl.querySelectorAll(".opt").forEach(b=>{b.onclick=()=>{const v=b.dataset.v,i=state.focuses.indexOf(v);if(i>=0)state.focuses.splice(i,1);else{if(state.focuses.length>=2)return;state.focuses.push(v);}
-    Object.keys(state.levels).forEach(k=>{if(!state.focuses.includes(k))delete state.levels[k];});renderFocus();};});
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${state.step+1}</div><div class="qtitle">今年度は、どのような目的・テーマでマネジメント業務をすすめていきたいですか？</div><div class="qhint">最大2つまで選べます。タップした順が優先順位（①②）です。面談に関わる観点（育成・モチベーション・困りごと）を2つ選んだ場合は、優先順位が高い1つの面談プランのみを反映します。</div><div class="selhint">タップで選択／もう一度タップで解除。</div><div class="opts">${opts}</div>${navHtml(state.step>0,state.focuses.length>0,isLastStep()?"診断する":"次へ →")}</div>`;
+  quizEl.querySelectorAll(".opt").forEach(b=>{b.onclick=()=>{const v=b.dataset.v,i=state.focuses.indexOf(v);if(i>=0)state.focuses.splice(i,1);else{if(state.focuses.length>=2)return;state.focuses.push(v);}renderFocus();};});
   wireNav(()=>{if(state.focuses.length){state.step++;render();}});
-}
-
-function renderLevel(){
-  const targets=levelFocuses();
-  const blocks=targets.map(f=>{
-    const def=LEVEL_DEFS[f];
-    const opts=def.opts.map(o=>{const sel=state.levels[f]===o.v?" sel":"";return`<button class="lvopt${sel}" data-f="${f}" data-v="${o.v}"><div class="lt">${o.lt}</div>${o.ld?`<div class="ld">${o.ld}</div>`:""}</button>`;}).join("");
-    return`<div class="lvblock"><div class="lvhead">${def.label}</div><div class="lvsub">これまでの実施頻度に近いものを選んでください。</div><div class="lvopts">${opts}</div></div>`;
-  }).join("");
-  const allSet=targets.every(f=>state.levels[f]);
-  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP 2</div><div class="qtitle">機能ごとの実施レベルは?</div><div class="qhint">機能ごとに、これまでの経験に近いレベルを選びます。レベルによって年間の回数・振り返りの選び方が変わります。</div>${blocks}${navHtml(true,allSet,isLastStep()?"診断する":"次へ →")}</div>`;
-  quizEl.querySelectorAll(".lvopt").forEach(b=>{b.onclick=()=>{state.levels[b.dataset.f]=b.dataset.v;
-    if(!needCycle())state.cycle=null;renderLevel();};});
-  wireNav(()=>{if(allSet){state.step++;render();}});
 }
 
 function renderCycle(){
@@ -612,8 +763,9 @@ function renderCycle(){
     {v:"半年",t:"半年ごとに振り返る",d:"前期・後期の区切りで振り返り（年2回程度）。"},
   ];
   const opts=cycOpts.map(o=>{const sel=state.cycle===o.v?" sel":"";return`<button class="opt${sel}" data-v="${o.v}"><div class="ot">${o.t}</div><div class="od">${o.d}</div></button>`;}).join("");
-  const targets=effectiveFocuses(state.focuses).filter(f=>canChooseCycle(f,state.levels[f])).map(f=>({育成:"個人面談",評価:"自己評価",目標:"目標管理"}[f]));
-  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP 3</div><div class="qtitle">振り返りのサイクルは?</div><div class="qhint">${targets.join("・")}の振り返りタイミングを揃えます。学期ごとか半年ごとかを選んでください（法人で1つに統一）。</div><div class="opts">${opts}</div>${navHtml(true,!!state.cycle,isLastStep()?"診断する":"次へ →")}</div>`;
+  const lv=levelsOf(state);
+  const targets=effectiveFocuses(state.focuses).filter(f=>canChooseCycle(f,lv[f])).map(f=>({育成:"個人面談",評価:"自己評価",目標:"目標管理"}[f]));
+  quizEl.innerHTML=`<div class="card"><div class="qnum">STEP ${state.step+1}</div><div class="qtitle">振り返りのサイクルは?</div><div class="qhint">${targets.join("・")}の振り返りタイミングを揃えます。学期ごとか半年ごとかを選んでください（法人で1つに統一）。</div><div class="opts">${opts}</div>${navHtml(true,!!state.cycle,isLastStep()?"診断する":"次へ →")}</div>`;
   quizEl.querySelectorAll(".opt").forEach(b=>{b.onclick=()=>{state.cycle=b.dataset.v;renderCycle();};});
   wireNav(()=>{if(state.cycle){state.step++;render();}});
 }
@@ -630,7 +782,7 @@ function renderMonth(){
 function fyIndex(m){return (m-4+12)%12;}
 function monthDist(a,b){return Math.abs(fyIndex(a)-fyIndex(b));}
 function buildPlan(st){
-  const focuses=st.focuses,levels=st.levels,cycle=st.cycle;
+  const focuses=st.focuses,levels=levelsOf(st),cycle=st.cycle;
   const top=focuses.find(f=>MENDAN_FOCUSES.includes(f));
   const eff=effectiveFocuses(focuses);
   const goalUsed=eff.includes("目標");
@@ -693,7 +845,7 @@ function planMarkup(st){
 }
 
 function focusesText(st){return st.focuses.map((f,i)=>`${i+1}.${f}`).join(" / ");}
-function levelsText(st){const ks=Object.keys(st.levels);return ks.length?ks.map(k=>`${k}:${st.levels[k]}`).join(" / "):"—";}
+function levelsText(st){const lv=levelsOf(st);const ks=Object.keys(lv);return ks.length?ks.map(k=>`${k}:${lv[k]}`).join(" / "):"—";}
 function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 
 /* ===================== 編集できるプランボード ===================== */
@@ -843,13 +995,13 @@ function renderResult(){
     </div>`;
   if(!state.planItems){state.planItems=clonePlan(buildPlan(state));state.planItems.sort((a,b)=>fyOffset(a.m,state.month)-fyOffset(b.m,state.month));}
   if(!state.daily)state.daily=initDaily();
-  resultEl.innerHTML=planHeadHtml(state,state.month)+`<div id="plan-area"></div><div id="daily-area"></div>`+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
+  resultEl.innerHTML=planHeadHtml(state,state.month)+surveySummaryHtml(state)+`<div id="plan-area"></div><div id="daily-area"></div>`+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
   renderPlanInto(document.getElementById("plan-area"),state.planItems,state.month,{editable:true});
   renderDailyInto(document.getElementById("daily-area"),state.daily,state.month,{editable:true});
   document.getElementById("sv-btn").onclick=saveCurrent;
   quizEl.classList.add("hidden");resultEl.classList.remove("hidden");
 }
-function restart(){state.phase="start";state.step=0;state.focuses=[];state.levels={};state.cycle=null;state.month=null;state.hojin="";state.memo="";state.savedId="";state.planItems=null;state.daily=null;resultEl.classList.add("hidden");quizEl.classList.remove("hidden");render();}
+function restart(){state.phase="start";state.step=0;state.focuses=[];state.cycle=null;state.month=null;state.hojin="";state.memo="";state.savedId="";state.planItems=null;state.daily=null;state.survey={};state.visitType="first";resultEl.classList.add("hidden");quizEl.classList.remove("hidden");render();}
 
 /* ===================== 共有台帳（Apps Script/スプレッドシート）連携 ===================== */
 function jsonp(params){
@@ -877,7 +1029,7 @@ function saveCurrent(){
   msg.className="savemsg";
   if(!hojin){msg.className="savemsg err";msg.textContent="法人名を入力してください。";return;}
   if(!CONFIG.API_URL){msg.className="savemsg info";msg.textContent="共有先が未設定です。README.md の手順どおり Apps Script をデプロイし、CONFIG.API_URL を設定してください。";return;}
-  const payload=JSON.stringify({focuses:state.focuses,levels:state.levels,cycle:state.cycle,month:state.month,planItems:state.planItems,daily:state.daily});
+  const payload=JSON.stringify({focuses:state.focuses,levels:levelsOf(state),cycle:state.cycle,month:state.month,planItems:state.planItems,daily:state.daily,survey:state.survey,visitType:state.visitType});
   const btn=document.getElementById("sv-btn");btn.disabled=true;
   msg.className="savemsg info";msg.textContent=state.savedId?"更新中…":"保存中…";
   const fields={hojin,date,author,cycle:state.cycle||"",month:state.month,
@@ -929,16 +1081,31 @@ function renderList(rows){
     const dt=r.ts?String(r.ts).slice(0,10):"";
     const memo1=String(r.memo||"").replace(/\s+/g," ").trim();
     const memoCell=memo1?`<span class="memocell" title="${esc(r.memo)}">📝 ${esc(memo1)}</span>`:"—";
+    const needsPlan=!r.month;
+    const monthCell=needsPlan?`<span class="tag" style="background:var(--amberbg);color:var(--amber)">要プラン作成</span>`:MONTHS[r.month-1];
+    const actionBtn=needsPlan
+      ? `<button class="rowbtn" data-continue="${i}">続きを入力する →</button>`
+      : `<button class="rowbtn" data-i="${i}">プラン・メモを表示</button>`;
     return `<tr>
       <td class="hj">${esc(r.hojin)}</td>
       <td>${esc(r.date||dt)}</td>
       <td>${esc(r.author||"—")}</td>
       <td>${focusTags||"—"}</td>
-      <td>${r.month?MONTHS[r.month-1]:"—"}</td>
+      <td>${monthCell}</td>
       <td>${memoCell}</td>
-      <td><button class="rowbtn" data-i="${i}">プラン・メモを表示</button></td>
+      <td>${actionBtn}</td>
     </tr>`;
   }).join("");
+
+  const groups=groupByHojin(rows);
+  const cmpTargets=Object.keys(groups).filter(h=>groups[h].length>=2).sort();
+  const cmpBar=cmpTargets.length
+    ? `<div class="listbar" style="margin-top:14px">
+        <label class="flab" style="margin:0">同じ法人の記録を経年比較</label>
+        <select class="txt searchbox" id="cmp-hojin">${cmpTargets.map(h=>`<option value="${esc(h)}">${esc(h)}（${groups[h].length}件）</option>`).join("")}</select>
+        <button class="btn" id="cmp-btn">比較する</button>
+      </div>`
+    : `<div class="qhint" style="margin-top:14px">同じ法人名で2件以上保存されると、ここで契約時からの経年比較ができるようになります。</div>`;
 
   listView.innerHTML=`
     <div class="listbar">
@@ -950,6 +1117,7 @@ function renderList(rows){
       <div class="sumcard"><div class="sh">よく選ばれる観点</div>${focusBars||'<div class="qhint">—</div>'}</div>
       <div class="sumcard"><div class="sh">契約開始月の分布</div>${monthBars||'<div class="qhint">—</div>'}</div>
     </div>
+    ${cmpBar}
     <div style="overflow-x:auto">
     <table class="rec">
       <thead><tr><th>法人名</th><th>実施日</th><th>記入者</th><th>観点</th><th>開始月</th><th>メモ</th><th></th></tr></thead>
@@ -964,7 +1132,40 @@ function renderList(rows){
       tr.style.display=hay.includes(q)?"":"none";
     });
   };
-  document.querySelectorAll(".rowbtn").forEach(b=>{b.onclick=()=>openPlan(rows[+b.dataset.i]);});
+  document.querySelectorAll(".rowbtn[data-i]").forEach(b=>{b.onclick=()=>openPlan(rows[+b.dataset.i]);});
+  document.querySelectorAll(".rowbtn[data-continue]").forEach(b=>{b.onclick=()=>continueFromRespond(rows[+b.dataset.continue]);});
+  const cmpBtn=document.getElementById("cmp-btn");
+  if(cmpBtn)cmpBtn.onclick=()=>openCompare(document.getElementById("cmp-hojin").value,groups[document.getElementById("cmp-hojin").value]);
+}
+// 顧客回答URL経由で送信された（サイクル・開始月・プラン未設定の）レコードを、
+// CSがここから続けて目的・テーマ選択の続き（サイクル・開始月）〜プラン作成まで行う。
+function continueFromRespond(r){
+  let base;try{base=JSON.parse(r.payload||"{}");}catch(e){base={};}
+  state.hojin=r.hojin||"";
+  state.author=r.author||"";
+  state.date=r.date||todayStr();
+  state.memo=r.memo||"";
+  state.savedId=r.id||"";
+  state.focuses=base.focuses||[];
+  state.survey=base.survey||{};
+  state.visitType=base.visitType||"first";
+  state.cycle=null;state.month=null;state.planItems=null;state.daily=null;
+  state.phase="diagnose";
+  const steps=stepList();
+  const resume=steps.indexOf("cycle");
+  state.step=resume>=0?resume:steps.indexOf("month");
+  tabDiag.click();
+  render();
+}
+function groupByHojin(rows){
+  const out={};
+  rows.forEach(r=>{
+    const key=String(r.hojin||"").trim();
+    if(!key)return;
+    (out[key]=out[key]||[]).push(r);
+  });
+  Object.keys(out).forEach(k=>out[k].sort((a,b)=>String(a.date||a.ts||"").localeCompare(String(b.date||b.ts||""))));
+  return out;
 }
 function openPlan(r){
   let base;
@@ -972,7 +1173,7 @@ function openPlan(r){
   const startM=base.month;
   let items;
   if(base.planItems&&base.planItems.length){items=base.planItems.map(x=>({m:x.m,func:x.func,title:x.title||"",template:x.template||"",alsoGoal:!!x.alsoGoal}));}
-  else if(startM){items=clonePlan(buildPlan({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM}));items.sort((a,b)=>fyOffset(a.m,startM)-fyOffset(b.m,startM));}
+  else if(startM){items=clonePlan(buildPlan({focuses:base.focuses||[],levels:base.levels||{},survey:base.survey||null,cycle:base.cycle||null,month:startM}));items.sort((a,b)=>fyOffset(a.m,startM)-fyOffset(b.m,startM));}
   else {items=[];}
   const daily=normDaily(base.daily);
   const editable=!!r.id;
@@ -984,17 +1185,18 @@ function openPlan(r){
     ? `<div class="memoblock"><div class="mt">打合せメモ（${when}${r.author?" ／ "+esc(r.author):""}）</div><textarea class="txt" id="pm-memo" placeholder="打合せの内容をここに記入・追記できます。">${esc(r.memo||"")}</textarea></div>`
     : (r.memo?`<div class="memoblock"><div class="mt">打合せメモ（${when}${r.author?" ／ "+esc(r.author):""}）</div><div class="mbody">${esc(r.memo)}</div></div>`:"");
   const head=startM?planHeadHtml({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null},startM):"";
+  const ctxHtml=surveySummaryHtml({focuses:base.focuses||[],levels:base.levels||{},survey:base.survey||null});
   const saveBar=editable
     ? `<div style="display:flex;gap:10px;align-items:center;margin-top:16px"><button class="btn primary" id="pm-save">変更を保存（メモ・プラン）</button><span class="savemsg" id="pm-msg" style="margin:0;padding:6px 10px"></span></div>`
     : `<div class="qhint" style="margin-top:12px">この記録は旧バージョンのため編集できません（新しく保存した記録から編集できます）。</div>`;
-  body.innerHTML=memoBlock+head+`<div id="pm-plan"></div><div id="pm-daily"></div>`+saveBar;
+  body.innerHTML=memoBlock+head+ctxHtml+`<div id="pm-plan"></div><div id="pm-daily"></div>`+saveBar;
   if(startM){renderPlanInto(document.getElementById("pm-plan"),items,startM,{editable:editable});}
   else{document.getElementById("pm-plan").innerHTML=`<div class="empty">このレコードには再表示用のデータがありません。</div>`;}
   if(startM){renderDailyInto(document.getElementById("pm-daily"),daily,startM,{editable:editable});}
   if(editable){
     document.getElementById("pm-save").onclick=()=>{
       const m=document.getElementById("pm-msg");const memo=document.getElementById("pm-memo").value;
-      const newPayload=JSON.stringify({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM,planItems:items,daily:daily});
+      const newPayload=JSON.stringify({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM,planItems:items,daily:daily,survey:base.survey||{},visitType:base.visitType||"first"});
       const b=document.getElementById("pm-save");b.disabled=true;
       m.className="savemsg info";m.textContent="保存中…";
       jsonp({action:"update",id:r.id,memo:memo,payload:newPayload})
@@ -1009,6 +1211,56 @@ function openPlan(r){
 }
 document.getElementById("modal-close").onclick=()=>document.getElementById("modal").classList.remove("show");
 document.getElementById("modal").onclick=e=>{if(e.target.id==="modal")document.getElementById("modal").classList.remove("show");};
+
+/* ===== 同一法人の経年比較 ===== */
+function svValStr(survey,key,f){
+  const obj=(survey&&survey[key])||{};
+  const v=obj[f.id];
+  if(v==null||v==="")return "";
+  if(Array.isArray(v))return v.length?v.join("／"):"";
+  return String(v);
+}
+function openCompare(hojin,records){
+  const title=document.getElementById("cmpmodal-title");
+  const body=document.getElementById("cmpmodal-body");
+  title.textContent=hojin+"　の経年比較（"+records.length+"件）";
+  const parsed=records.map(r=>{
+    let base={};try{base=JSON.parse(r.payload||"{}");}catch(e){}
+    return {r,base,survey:base.survey||{},levels:levelsOf(base)};
+  });
+  const cols=parsed.length;
+  const headCells=parsed.map(p=>`<th>${esc(p.r.date||(p.r.ts?String(p.r.ts).slice(0,10):"—"))}${p.r.author?`<br><span style="font-weight:400">${esc(p.r.author)}</span>`:""}</th>`).join("");
+  function rowHtml(label,getVal){
+    let prev=null;
+    const cells=parsed.map((p,i)=>{
+      const val=getVal(p)||"";
+      const changed=i>0&&val!==prev&&(val||prev);
+      prev=val;
+      return `<td class="${changed?"cmpchanged":""}">${val?esc(val):'<span class="cmpempty">—</span>'}</td>`;
+    }).join("");
+    return `<tr><td>${esc(label)}</td>${cells}</tr>`;
+  }
+  function secRow(label){return `<tr><td class="cmpsec" colspan="${cols+1}">${esc(label)}</td></tr>`;}
+  let rows="";
+  rows+=secRow("サマリー");
+  rows+=rowHtml("重視したテーマ",p=>effectiveFocuses(p.base.focuses||[]).join(" / "));
+  rows+=rowHtml("振り返りサイクル",p=>p.base.cycle||"");
+  rows+=rowHtml("契約開始月",p=>p.base.month?MONTHS[p.base.month-1]:"");
+  rows+=rowHtml("育成レベル判定",p=>p.levels["育成"]||"");
+  rows+=rowHtml("評価レベル判定",p=>p.levels["評価"]||"");
+  rows+=rowHtml("目標レベル判定",p=>p.levels["目標"]||"");
+  SURVEY_STEPS.forEach(cfg=>{
+    const fieldsWithData=cfg.fields.filter(f=>parsed.some(p=>svValStr(p.survey,cfg.key,f)));
+    if(!fieldsWithData.length)return;
+    rows+=secRow(cfg.title);
+    fieldsWithData.forEach(f=>{rows+=rowHtml(f.short||f.label,p=>svValStr(p.survey,cfg.key,f));});
+  });
+  body.innerHTML=`<table class="cmp"><thead><tr><th>項目</th>${headCells}</tr></thead><tbody>${rows}</tbody></table>
+    <p class="qhint" style="margin-top:10px">色付きのセルは、直前の記録から回答が変わった項目です。</p>`;
+  document.getElementById("cmpmodal").classList.add("show");
+}
+document.getElementById("cmpmodal-close").onclick=()=>document.getElementById("cmpmodal").classList.remove("show");
+document.getElementById("cmpmodal").onclick=e=>{if(e.target.id==="cmpmodal")document.getElementById("cmpmodal").classList.remove("show");};
 
 /* ===== テンプレート内容の表示 ===== */
 function openTemplate(name){

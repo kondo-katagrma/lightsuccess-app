@@ -15,21 +15,31 @@
 const SHEET_NAME = "records";
 const MASTER_SHEET = "";                 // 法人名リストのシート名。空なら「records以外の最初のシート」のA列を使う
 const MASTER_COL = 1;                    // 法人名が入っている列番号（A列=1、B列=2 …）
-const TOKEN = "kata-ls-8995de7ce34c";   // ← index.html の CONFIG.TOKEN と一致させること
-const APP_VERSION = "v2-memo-id";       // デプロイ確認用。pingで返る。
+const TOKEN = "kata-ls-8995de7ce34c";   // ← index.html の CONFIG.TOKEN と一致させること（CS専用・閲覧含む全操作）
+const SUBMIT_TOKEN = "kata-ls-submit-2f91ab7c4e"; // ← respond.html の CONFIG.SUBMIT_TOKEN と一致させること（顧客回答URL専用・新規追加のみ）
+const APP_VERSION = "v3-public-submit";       // デプロイ確認用。pingで返る。
 
+// このウェブアプリは「全員（匿名アクセスも含む）」でデプロイする想定。
+// TOKEN（CS用）は list/hojins/save/update など全操作を許可する一方、
+// SUBMIT_TOKEN（顧客回答URL用）は submitSurvey（1行追加のみ）しか許可しない。
+// 顧客用リンクが漏れても他法人のデータ閲覧・改変はできない設計。
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const cb = p.callback || "callback";
   let out;
   try {
     if (p.action === "ping")         return textOut(cb, { ok: true, version: APP_VERSION });
-    if (p.token !== TOKEN) throw new Error("認証トークンが一致しません");
-    if (p.action === "save")         out = handleSave(p);
-    else if (p.action === "update")  out = handleUpdate(p);
-    else if (p.action === "list")    out = handleList();
-    else if (p.action === "hojins")  out = handleHojins();
-    else                             out = { ok: false, error: "不明なaction: " + p.action };
+    if (p.action === "submitSurvey") {
+      if (p.token !== SUBMIT_TOKEN) throw new Error("認証トークンが一致しません");
+      out = handleSubmitSurvey(p);
+    } else {
+      if (p.token !== TOKEN) throw new Error("認証トークンが一致しません");
+      if (p.action === "save")         out = handleSave(p);
+      else if (p.action === "update")  out = handleUpdate(p);
+      else if (p.action === "list")    out = handleList();
+      else if (p.action === "hojins")  out = handleHojins();
+      else                             out = { ok: false, error: "不明なaction: " + p.action };
+    }
   } catch (err) {
     out = { ok: false, error: String(err && err.message ? err.message : err) };
   }
@@ -70,6 +80,29 @@ function handleSave(p) {
     p.month || "",
     p.payload || "",
     p.memo || "",
+    id
+  ]);
+  return { ok: true, id: id };
+}
+
+// 顧客回答URL専用：新規行を1件追加するだけ。CS用の handleSave と処理は近いが、
+// 信頼できるフィールドだけを明示的に拾い、他フィールド（cycle/monthなど）は常に空にする。
+// list/update などの操作はこのトークンでは一切許可しない（doGet 側で分岐済み）。
+function handleSubmitSurvey(p) {
+  if (!p.hojin) throw new Error("法人名が指定されていません");
+  const sh = getSheet();
+  const id = "r" + Date.now() + Math.floor(Math.random() * 10000);
+  sh.appendRow([
+    new Date(),
+    p.hojin || "",
+    p.date || "",
+    p.author || "",
+    p.focusesText || "",
+    p.levelsText || "",
+    "",           // サイクルはCS側で後から設定
+    "",           // 開始月はCS側で後から設定
+    p.payload || "",
+    "",           // メモはCS側で追記
     id
   ]);
   return { ok: true, id: id };
