@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KatagrMa 導入アンケート</title>
+<title>KatagrMa 現状のヒアリング</title>
 <style>
   :root{
     --ink:#12211F;--deep:#0F6E56;--teal:#1D9E75;--mist:#E1F5EE;--paper:#FFFFFF;--soft:#F4F7F5;
@@ -59,7 +59,7 @@
 <div class="wrap">
   <header>
     <div class="brand">KatagrMa</div>
-    <h1>導入に関するアンケート</h1>
+    <h1>現状のヒアリング</h1>
     <p class="lead" id="lead-text"></p>
   </header>
   <div class="steps" id="steps"></div>
@@ -82,7 +82,7 @@ function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 
 const FOCUS_OPTS=[
   {v:"育成",t:"職員の育成に力を入れたい",d:"目標に沿った成長支援を促進する。"},
-  {v:"モチベーション",t:"定期的なモチベーション管理を行っていきたい",d:"1on1で対話を重ね、意欲を引き出す。"},
+  {v:"モチベーション",t:"定期的なモチベーション管理を行っていきたい",d:"1on1で対話を重ね、意欲を引き出す。定着を図りたい。"},
   {v:"困りごと",t:"職員の困りごとを把握し、早期フォローをしたい",d:"相談・要望を拾い、早期離職を防ぐ。"},
   {v:"評価",t:"自己評価・振り返りのサイクルを整備したい",d:"自己評価を軸に、公平な振り返りの仕組みを作る。"},
   {v:"目標",t:"目標の管理をしっかり行いたい",d:"目標設定・振り返りのサイクルを回す。"},
@@ -142,7 +142,7 @@ const SURVEY_STEPS=[
     {id:"expectGrowth",short:"人財育成への期待",label:"組織人財育成の質向上に対してカタグルマ導入で目指したいことをご記入ください（任意）",type:"textarea",firstOnly:true},
   ]},
   {key:"effect",title:"次のステップ",repeatOnly:true,fields:[
-    {id:"nextSteps",short:"次のステップ",label:"次のステップとして取り組みたいことは何ですか（複数選択可）",type:"chips",opts:["職員データベース","個人面談","個人目標・計画","自己評価（職員・施設）","研修計画・報告","職員会議","事業計画・報告","特になし（現状維持）"]},
+    {id:"nextSteps",short:"次のステップ",label:"次のステップとして取り組みたいことは何ですか（複数選択可）",type:"chips",opts:["職員データベース","個人面談","個人目標・計画","自己評価（職員・施設）","研修計画・報告","職員会議","事業計画・報告","キャリアパスの構築","リーダーの育成","人事評価","その他","特になし（現状維持）"]},
   ]},
 ];
 
@@ -319,7 +319,7 @@ function showRetry(msg){
 if(!state.hojin){
   document.getElementById("lead-text").textContent="URLが正しくありません。担当のカスタマーサクセスにご確認ください。";
 }else{
-  document.getElementById("lead-text").textContent=`「${state.hojin}」様向けのアンケートです。より良いご提案のため、いくつか質問にお答えください。`;
+  document.getElementById("lead-text").textContent=`「${state.hojin}」様の現状ヒアリングです。より良いご提案のため、いくつか質問にお答えください。`;
   render();
 }
 </script>
