@@ -871,7 +871,7 @@ function levelsText(st){const lv=levelsOf(st);const ks=Object.keys(lv);return ks
 function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 
 /* ===================== 編集できるプランボード ===================== */
-const FUNC_LIST=["面談","自己評価","目標管理"];
+const FUNC_LIST=["面談","自己評価","目標管理","人事評価"];
 const FUNC_CLASS={"面談":"f0","自己評価":"f1","目標管理":"f2","人事評価":"f3"};
 const TEMPLATE_BY_FUNC={
   "面談":["【新年度】役割・体制確認","【通常】振り返り・改善","【通常】できたこと・気づき","【通常】相談・要望","【1on1】対話・サポート","【フォロー】成長・サポート","【目標】設定・振り返り","【目標】設定・振り返り（目標計画・管理対応）","【調査】次年度希望調査","【調査】意向調査"],
@@ -926,7 +926,7 @@ function editRowsHtml(items,startM,editable){
 }
 function addFormHtml(){
   const mopts=MONTHS.map((mm,k)=>`<option value="${k+1}">${mm}</option>`).join("");
-  const fopts=FUNC_LIST.map(f=>`<option value="${f}">${f}</option>`).join("");
+  const fopts=`<option value="">選択なし</option>`+FUNC_LIST.map(f=>`<option value="${f}">${f}</option>`).join("");
   const topts=TEMPLATE_BY_FUNC["面談"].map(tp=>`<option value="${esc(tp)}">${esc(tp)}</option>`).join("");
   return `<div class="eadd">
     <select class="esel" id="add-month">${mopts}</select>
