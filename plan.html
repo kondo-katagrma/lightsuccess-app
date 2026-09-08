@@ -116,8 +116,8 @@ function editRowsHtml(items,startM){
     return `<div class="erow ${win?'win':''}"><span class="emonthlbl">${MONTHS[it.m-1]}</span><span class="efunc">${chip}</span><span class="etitlelbl">${esc(it.title)}</span>${templ}</div>`;
   }).join("");
 }
-function renderPlanInto(container,items,startM){
-  container.innerHTML=windowSectionHtml(items,startM)+`<div class="section-t">1年間のマネジメントプラン</div><div class="editlist">${editRowsHtml(items,startM)}</div>`;
+function renderPlanInto(container,items,startM,showWindow){
+  container.innerHTML=(showWindow?windowSectionHtml(items,startM):"")+`<div class="section-t">1年間のマネジメントプラン</div><div class="editlist">${editRowsHtml(items,startM)}</div>`;
 }
 const DEFAULT_DAILY=["職員会議録","研修報告","報告・共有"];
 function initDaily(){return DEFAULT_DAILY.map(n=>({name:n,startM:null}));}
@@ -160,7 +160,7 @@ function render(row){
   }
   const daily=normDaily(base.daily);
   document.getElementById("content").innerHTML=planHeadHtml(base,startM)+`<div id="plan-area"></div><div id="daily-area"></div>`;
-  renderPlanInto(document.getElementById("plan-area"),items,startM);
+  renderPlanInto(document.getElementById("plan-area"),items,startM,base.visitType!=="repeat");
   renderDailyInto(document.getElementById("daily-area"),daily,startM);
 }
 function loadPlan(){

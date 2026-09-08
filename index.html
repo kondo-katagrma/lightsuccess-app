@@ -920,11 +920,11 @@ function addFormHtml(){
   </div>`;
 }
 function renderPlanInto(container,items,startM,opts){
-  opts=opts||{};const editable=opts.editable!==false;
+  opts=opts||{};const editable=opts.editable!==false;const showWindow=opts.showWindow!==false;
   const barHtml=editable
     ? `<div class="planbar"><div class="section-t" style="margin:0">1年間のマネジメントプラン</div><div class="ehint" style="margin:0">月の変更・項目名の編集・削除・追加ができます</div></div>`
     : `<div class="section-t">1年間のマネジメントプラン</div>`;
-  container.innerHTML=windowSectionHtml(items,startM)+barHtml+`<div class="editlist">${editRowsHtml(items,startM,editable)}</div>`+(editable?addFormHtml():"");
+  container.innerHTML=(showWindow?windowSectionHtml(items,startM):"")+barHtml+`<div class="editlist">${editRowsHtml(items,startM,editable)}</div>`+(editable?addFormHtml():"");
   const rerender=()=>{renderPlanInto(container,items,startM,opts);if(opts.onChange)opts.onChange();};
   if(editable){
     container.querySelectorAll(".emonth").forEach(s=>{s.onchange=()=>{items[+s.dataset.i].m=parseInt(s.value);rerender();};});
@@ -1001,7 +1001,7 @@ function renderResult(){
   if(!state.planItems){state.planItems=clonePlan(buildPlan(state));state.planItems.sort((a,b)=>fyOffset(a.m,state.month)-fyOffset(b.m,state.month));}
   if(!state.daily)state.daily=initDaily();
   resultEl.innerHTML=planHeadHtml(state,state.month)+surveySummaryHtml(state)+`<div id="plan-area"></div><div id="daily-area"></div>`+savePanel+`<div class="restart"><button class="btn" onclick="restart()">最初からやり直す</button></div>`;
-  renderPlanInto(document.getElementById("plan-area"),state.planItems,state.month,{editable:true});
+  renderPlanInto(document.getElementById("plan-area"),state.planItems,state.month,{editable:true,showWindow:state.visitType!=="repeat"});
   renderDailyInto(document.getElementById("daily-area"),state.daily,state.month,{editable:true});
   document.getElementById("sv-btn").onclick=saveCurrent;
   quizEl.classList.add("hidden");resultEl.classList.remove("hidden");
@@ -1201,7 +1201,7 @@ function openPlan(r){
       </div>`
     : "";
   body.innerHTML=memoBlock+head+ctxHtml+`<div id="pm-plan"></div><div id="pm-daily"></div>`+saveBar+shareBar;
-  if(startM){renderPlanInto(document.getElementById("pm-plan"),items,startM,{editable:editable});}
+  if(startM){renderPlanInto(document.getElementById("pm-plan"),items,startM,{editable:editable,showWindow:base.visitType!=="repeat"});}
   else{document.getElementById("pm-plan").innerHTML=`<div class="empty">このレコードには再表示用のデータがありません。</div>`;}
   if(startM){renderDailyInto(document.getElementById("pm-daily"),daily,startM,{editable:editable});}
   if(editable){
