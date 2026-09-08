@@ -1038,7 +1038,7 @@ function saveCurrent(){
   const btn=document.getElementById("sv-btn");btn.disabled=true;
   msg.className="savemsg info";msg.textContent=state.savedId?"更新中…":"保存中…";
   const fields={hojin,date,author,cycle:state.cycle||"",month:state.month,
-                focusesText:focusesText(state),levelsText:levelsText(state),payload,memo};
+                focusesText:focusesText(state),levelsText:levelsText(state),surveyText:surveyText(state),payload,memo};
   const params=state.savedId?Object.assign({action:"update",id:state.savedId},fields)
                             :Object.assign({action:"save",id:"r"+Date.now()+Math.floor(Math.random()*10000)},fields);
   jsonp(params)
@@ -1210,7 +1210,7 @@ function openPlan(r){
       const newPayload=JSON.stringify({focuses:base.focuses||[],levels:base.levels||{},cycle:base.cycle||null,month:startM,planItems:items,daily:daily,survey:base.survey||{},visitType:base.visitType||"first"});
       const b=document.getElementById("pm-save");b.disabled=true;
       m.className="savemsg info";m.textContent="保存中…";
-      jsonp({action:"update",id:r.id,memo:memo,payload:newPayload})
+      jsonp({action:"update",id:r.id,memo:memo,payload:newPayload,surveyText:surveyText(base)})
         .then(res=>{
           if(res&&res.ok){m.className="savemsg ok";m.textContent="更新しました。";r.memo=memo;r.payload=newPayload;if(listCache)renderList(listCache);b.disabled=false;}
           else{m.className="savemsg err";m.textContent="失敗："+((res&&res.error)||"不明なエラー");b.disabled=false;}
@@ -1243,6 +1243,19 @@ function svValStr(survey,key,f){
   if(v==null||v==="")return "";
   if(Array.isArray(v))return v.length?v.join("／"):"";
   return String(v);
+}
+// 台帳の生シート上でも法人の回答内容が読めるよう、SURVEY_STEPS を人が読めるテキストにまとめる。
+function surveyText(st){
+  const survey=(st&&st.survey)||{};
+  const lines=[];
+  SURVEY_STEPS.forEach(cfg=>{
+    const parts=cfg.fields.map(f=>{
+      const v=svValStr(survey,cfg.key,f);
+      return v?(f.short||f.label)+"："+v:null;
+    }).filter(Boolean);
+    if(parts.length)lines.push(`【${cfg.title}】`+parts.join("／"));
+  });
+  return lines.join("\n");
 }
 function openCompare(hojin,records){
   const title=document.getElementById("cmpmodal-title");

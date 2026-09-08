@@ -18,7 +18,7 @@ const MASTER_COL = 1;                    // 法人名が入っている列番号
 const TOKEN = "kata-ls-8995de7ce34c";   // ← index.html の CONFIG.TOKEN と一致させること（CS専用・閲覧含む全操作）
 const SUBMIT_TOKEN = "kata-ls-submit-2f91ab7c4e"; // ← respond.html の CONFIG.SUBMIT_TOKEN と一致させること（顧客回答URL専用・新規追加のみ）
 const VIEW_TOKEN = "kata-ls-view-7c3ae91fd0"; // ← plan.html の CONFIG.VIEW_TOKEN と一致させること（プラン共有URL専用・id指定で1件だけ閲覧）
-const APP_VERSION = "v4-plan-share";       // デプロイ確認用。pingで返る。
+const APP_VERSION = "v5-survey-text-column";       // デプロイ確認用。pingで返る。
 
 // このウェブアプリは「全員（匿名アクセスも含む）」でデプロイする想定。
 // TOKEN（CS用）は list/hojins/save/update など全操作を許可する一方、
@@ -57,16 +57,17 @@ function textOut(cb, out) {
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
-// 列構成： A保存日時 B法人名 C実施日 D記入者 E観点 F レベル G サイクル H開始月 I payload J メモ K id
+// 列構成： A保存日時 B法人名 C実施日 D記入者 E観点 F レベル G サイクル H開始月 I payload J メモ K id L回答内容
 function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(["保存日時", "法人名", "実施日", "記入者", "観点", "レベル", "サイクル", "開始月", "payload", "メモ", "id"]);
+    sh.appendRow(["保存日時", "法人名", "実施日", "記入者", "観点", "レベル", "サイクル", "開始月", "payload", "メモ", "id", "回答内容"]);
   } else {
     if (!sh.getRange(1, 10).getValue()) sh.getRange(1, 10).setValue("メモ");  // 既存シートに列を追加
     if (!sh.getRange(1, 11).getValue()) sh.getRange(1, 11).setValue("id");
+    if (!sh.getRange(1, 12).getValue()) sh.getRange(1, 12).setValue("回答内容");
   }
   return sh;
 }
@@ -85,7 +86,8 @@ function handleSave(p) {
     p.month || "",
     p.payload || "",
     p.memo || "",
-    id
+    id,
+    p.surveyText || ""
   ]);
   return { ok: true, id: id };
 }
@@ -108,7 +110,8 @@ function handleSubmitSurvey(p) {
     "",           // 開始月はCS側で後から設定
     p.payload || "",
     "",           // メモはCS側で追記
-    id
+    id,
+    p.surveyText || ""
   ]);
   return { ok: true, id: id };
 }
@@ -131,6 +134,7 @@ function handleUpdate(p) {
       if (p.month       !== undefined) sh.getRange(row, 8).setValue(p.month);
       if (p.payload     !== undefined) sh.getRange(row, 9).setValue(p.payload);
       if (p.memo        !== undefined) sh.getRange(row, 10).setValue(p.memo);
+      if (p.surveyText  !== undefined) sh.getRange(row, 12).setValue(p.surveyText);
       return { ok: true };
     }
   }
@@ -211,7 +215,8 @@ function handleList() {
       month:       r[7],
       payload:     r[8],
       memo:        r[9] || "",
-      id:          r[10] || ""
+      id:          r[10] || "",
+      surveyText:  r[11] || ""
     });
   }
   rows.reverse();  // 新しい順

@@ -267,6 +267,23 @@ function jsonp(params){
 }
 function focusesText(){return state.focuses.map((f,i)=>`${i+1}.${f}`).join(" / ");}
 function levelsText(){const lv=levelsOf(state);const ks=Object.keys(lv);return ks.length?ks.map(k=>`${k}:${lv[k]}`).join(" / "):"—";}
+// 台帳の生シート上でも法人の回答内容が読めるよう、SURVEY_STEPS を人が読めるテキストにまとめる。
+function surveyText(){
+  const lines=[];
+  SURVEY_STEPS.forEach(cfg=>{
+    const sv=state.survey[cfg.key]||{};
+    const parts=cfg.fields.map(f=>{
+      const v=sv[f.id];
+      let s="";
+      if(v==null||v==="")s="";
+      else if(Array.isArray(v))s=v.length?v.join("／"):"";
+      else s=String(v);
+      return s?(f.short||f.label)+"："+s:null;
+    }).filter(Boolean);
+    if(parts.length)lines.push(`【${cfg.title}】`+parts.join("／"));
+  });
+  return lines.join("\n");
+}
 function renderSubmit(){
   stepsEl.innerHTML="";
   quizEl.innerHTML=`<div class="card"><div class="qtitle">送信中…</div></div>`;
@@ -280,6 +297,7 @@ function doSubmit(){
     author:"",
     focusesText:focusesText(),
     levelsText:levelsText(),
+    surveyText:surveyText(),
     payload:JSON.stringify({focuses:state.focuses,survey:state.survey,visitType:state.visitType}),
   };
   jsonp(params)
