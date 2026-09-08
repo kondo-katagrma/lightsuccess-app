@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KatagrMa マネジメントプラン</title>
+<style>
+  :root{
+    --ink:#12211F;--deep:#0F6E56;--teal:#1D9E75;--mist:#E1F5EE;--paper:#FFFFFF;--soft:#F4F7F5;
+    --line:#DCE4E1;--muted:#5F6B68;--amber:#BA7517;--amberbg:#FAEEDA;--green:#3B6D11;--greenbg:#EAF3DE;
+    --shadow:0 1px 3px rgba(15,110,86,.08);--blue:#185FA5;--bluebg:#E6F1FB;--purple:#534AB7;--purplebg:#EEEDFE;
+    --red:#B4262B;--redbg:#FBE9E9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:var(--ink);background:var(--soft);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 20px 80px}
+  header{margin-bottom:14px}
+  .brand{font-size:12px;font-weight:700;letter-spacing:.15em;color:var(--teal);text-transform:uppercase}
+  h1{font-size:24px;font-weight:700;margin-top:6px}
+  .lead{color:var(--muted);font-size:14px;margin-top:8px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:var(--shadow);margin-top:18px}
+  .qtitle{font-size:19px;font-weight:700;margin:4px 0 4px}
+  .qhint{font-size:13px;color:var(--muted)}
+  .result-head{background:var(--deep);color:#fff;border-radius:16px;padding:24px 26px;margin-top:18px}
+  .result-head .rlabel{font-size:12px;font-weight:700;letter-spacing:.1em;color:#9FE1CB;text-transform:uppercase}
+  .result-head h2{font-size:21px;font-weight:700;margin-top:6px}
+  .result-head .rsub{font-size:13.5px;color:#CFEDE2;margin-top:8px;line-height:1.6}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;margin-right:8px;margin-top:10px}
+  .badge.seg{background:#9FE1CB;color:#04342C}.badge.lvl{background:rgba(255,255,255,.16);color:#fff}
+  .section-t{font-size:13px;font-weight:700;color:var(--deep);letter-spacing:.05em;margin:26px 0 4px}
+  .first{background:var(--greenbg);border:1.5px solid #C0DD97;border-radius:14px;padding:20px;margin-top:12px}
+  .first .ft{font-size:12px;font-weight:700;color:var(--green);letter-spacing:.05em}
+  .wlist{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  .witem{display:grid;grid-template-columns:56px 1fr;gap:10px;align-items:start;background:#fff;border:1px solid #C0DD97;border-radius:10px;padding:10px 12px}
+  .wmonth{font-size:14px;font-weight:700;color:var(--green);text-align:center;padding-top:2px}
+  .wtitle{font-size:14px;font-weight:700;color:var(--ink);line-height:1.4}
+  .wtemp{font-size:11.5px;color:var(--green);margin-top:4px;font-weight:700}
+  .special{background:var(--amberbg);border:1px solid #FAC775;border-radius:14px;padding:20px;margin-top:18px}
+  .special .st{font-size:15px;font-weight:700;color:var(--amber)}
+  .special .sd{font-size:13.5px;color:#6b4a10;margin-top:6px;line-height:1.6}
+  .editlist{border:1px solid var(--line);border-radius:14px;overflow-x:auto;margin-top:10px;background:var(--paper)}
+  .erow{display:grid;grid-template-columns:84px 96px minmax(120px,1fr) minmax(150px,1.1fr);gap:8px;align-items:center;padding:10px 12px;border-top:1px dashed var(--line)}
+  .erow:first-child{border-top:none}
+  .erow.win{background:var(--greenbg)}
+  .efunc{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+  .emonthlbl{font-weight:700;color:var(--deep);font-size:13px;min-width:40px}
+  .etitlelbl{font-weight:700;font-size:14px;flex:1}
+  .etempllbl{font-size:11.5px;color:var(--deep);background:var(--mist);border-radius:6px;padding:2px 8px;font-weight:700}
+  .tfunc{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;margin-right:8px;vertical-align:middle}
+  .tfunc.f0{background:var(--mist);color:var(--deep)}.tfunc.f1{background:var(--bluebg);color:var(--blue)}.tfunc.f2{background:var(--purplebg);color:var(--purple)}
+  .dailylist{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:10px;background:var(--paper)}
+  .drow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 12px;border-top:1px dashed var(--line)}
+  .drow:first-child{border-top:none}
+  .drow.win{background:var(--greenbg)}
+  .dname{font-weight:700;font-size:14px;min-width:120px;flex:0 1 auto}
+  .dtag{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--green);border-radius:5px;padding:2px 7px}
+  .ehint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">KatagrMa</div>
+    <h1>マネジメントプラン</h1>
+    <p class="lead" id="lead-text"></p>
+  </header>
+  <div id="content"></div>
+</div>
+
+<script>
+/* ============================================================
+   設定：Apps Script ウェブアプリのURLと「閲覧専用」トークンをここに入れる。
+   ※ このファイルには CS用のフルアクセストークン（index.html の CONFIG.TOKEN）を
+     絶対に書かないこと。VIEW_TOKEN は Code.gs の VIEW_TOKEN と一致させる。
+     VIEW_TOKEN だけでは一覧取得はできず、URLで渡された id 1件しか読めない。
+   ============================================================ */
+const CONFIG={
+  API_URL:"https://script.google.com/a/macros/katagrma.co.jp/s/AKfycbz_-oK-iaXttqhRDLoX9xJ2-6qBtEgO0dsXzxRb-B3ANVGnNjgsLkrtEt7Wxj43UN8W/exec",
+  VIEW_TOKEN:"kata-ls-view-7c3ae91fd0"
+};
+
+const MONTHS=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const MENDAN_FOCUSES=["育成","モチベーション","困りごと"];
+function effectiveFocuses(focuses){
+  const top=focuses.find(f=>MENDAN_FOCUSES.includes(f));
+  return focuses.filter(f=>!MENDAN_FOCUSES.includes(f)||f===top);
+}
+const FUNC_CLASS={"面談":"f0","自己評価":"f1","目標管理":"f2"};
+function funcOrder(f){const o={"自己評価":0,"目標管理":1,"面談":2};return o[f]!==undefined?o[f]:9;}
+function fyOffset(m,startM){return ((m-startM)+12)%12;}
+
+function planHeadHtml(st,startM){
+  const eff=effectiveFocuses(st.focuses||[]);
+  const windowLast=MONTHS[((startM-1+5)%12)];
+  const badges=eff.map((f,i)=>`<span class="badge seg">${i+1}. ${f}</span>`).join("")+(st.cycle?`<span class="badge lvl">振り返り：${st.cycle}ごと</span>`:"");
+  return `<div class="result-head"><div class="rlabel">マネジメントプラン</div><h2>今年度のマネジメントプラン</h2><div class="rsub">契約開始月（${MONTHS[startM-1]}）を起点に、半年（〜${windowLast}）で取り組む項目が「最初の一歩（ライトサクセス）」の対象です。</div><div>${badges}</div></div>`;
+}
+function windowSectionHtml(items,startM){
+  const windowLast=MONTHS[((startM-1+5)%12)];
+  const win=items.filter(it=>fyOffset(it.m,startM)<6).slice().sort((a,b)=>fyOffset(a.m,startM)-fyOffset(b.m,startM)||funcOrder(a.func)-funcOrder(b.func));
+  let inner;
+  if(win.length){
+    inner=`<div class="first"><div class="ft">この半年で予定されている項目（${win.length}件）</div><div class="wlist">`+win.map(it=>`<div class="witem"><div class="wmonth">${MONTHS[it.m-1]}</div><div class="wbody"><div class="wtitle"><span class="tfunc ${FUNC_CLASS[it.func]||'f0'}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}${esc(it.title)}</div>${it.template?`<div class="wtemp">テンプレ：${esc(it.template)}</div>`:''}</div></div>`).join("")+`</div></div>`;
+  }else{
+    inner=`<div class="special"><div class="st">開始月＋6ヶ月以内に、予定はありません</div><div class="sd">${MONTHS[startM-1]}〜${windowLast}に予定はありません。</div></div>`;
+  }
+  return `<div class="section-t">半年で取り組むこと（契約開始 ${MONTHS[startM-1]} 〜 ${windowLast}）</div>${inner}`;
+}
+function editRowsHtml(items,startM){
+  if(!items.length)return `<div class="erow" style="grid-template-columns:1fr;color:var(--muted)">項目がありません。</div>`;
+  return items.map(it=>{
+    const win=fyOffset(it.m,startM)<6;
+    const chip=`<span class="tfunc ${FUNC_CLASS[it.func]||'f0'}">${it.func}</span>${it.alsoGoal?'<span class="tfunc f2">目標管理</span>':''}`;
+    const templ=it.template?`<span class="etempllbl">${esc(it.template)}</span>`:'<span></span>';
+    return `<div class="erow ${win?'win':''}"><span class="emonthlbl">${MONTHS[it.m-1]}</span><span class="efunc">${chip}</span><span class="etitlelbl">${esc(it.title)}</span>${templ}</div>`;
+  }).join("");
+}
+function renderPlanInto(container,items,startM){
+  container.innerHTML=windowSectionHtml(items,startM)+`<div class="section-t">1年間のマネジメントプラン</div><div class="editlist">${editRowsHtml(items,startM)}</div>`;
+}
+const DEFAULT_DAILY=["職員会議録","研修報告","報告・共有"];
+function initDaily(){return DEFAULT_DAILY.map(n=>({name:n,startM:null}));}
+function normDaily(arr){return (arr&&arr.length?arr:initDaily()).map(d=>({name:d.name,startM:d.startM||null,custom:!!d.custom}));}
+function renderDailyInto(container,daily,startM){
+  const rows=daily.map(d=>{
+    const win=(d.startM&&fyOffset(d.startM,startM)<6);
+    const tag=win?`<span class="dtag">半年で開始</span>`:'';
+    return `<div class="drow ${win?'win':''}"><span class="dname">${esc(d.name)}</span><span class="emonthlbl">${d.startM?MONTHS[d.startM-1]+'〜利用':'未設定'}</span>${tag}</div>`;
+  }).join("");
+  container.innerHTML=`<div class="section-t">日常機能の利用開始</div><div class="ehint">面談などのイベントとは別に、日常的に使う機能をいつから使い始めるかの予定です。</div><div class="dailylist">${rows||'<div class="drow" style="color:var(--muted)">項目がありません</div>'}</div>`;
+}
+
+function jsonp(params){
+  return new Promise((resolve,reject)=>{
+    if(!CONFIG.API_URL){reject(new Error("NO_API"));return;}
+    const cb="__cb"+Math.random().toString(36).slice(2);
+    const s=document.createElement("script");
+    let done=false;
+    const cleanup=()=>{try{delete window[cb];}catch(e){window[cb]=undefined;}s.remove();};
+    window[cb]=(data)=>{done=true;resolve(data);cleanup();};
+    s.onerror=()=>{if(!done){reject(new Error("NETWORK"));cleanup();}};
+    const q=new URLSearchParams(Object.assign({},params,{callback:cb,token:CONFIG.VIEW_TOKEN})).toString();
+    s.src=CONFIG.API_URL+"?"+q;
+    document.body.appendChild(s);
+    setTimeout(()=>{if(!done){reject(new Error("TIMEOUT"));cleanup();}},15000);
+  });
+}
+function showError(msg){
+  document.getElementById("content").innerHTML=`<div class="card"><div class="qtitle">表示できませんでした</div><div class="qhint">${esc(msg)}</div></div>`;
+}
+function render(row){
+  let base={};try{base=JSON.parse(row.payload||"{}");}catch(e){}
+  const startM=row.month?parseInt(row.month,10):null;
+  const items=(base.planItems&&base.planItems.length)?base.planItems:[];
+  document.getElementById("lead-text").textContent=`「${row.hojin}」様の年間マネジメントプランです。`;
+  if(!startM||!items.length){
+    document.getElementById("content").innerHTML=`<div class="card"><div class="qtitle">まだプランが準備できていません</div><div class="qhint">担当のカスタマーサクセスにご確認ください。</div></div>`;
+    return;
+  }
+  const daily=normDaily(base.daily);
+  document.getElementById("content").innerHTML=planHeadHtml(base,startM)+`<div id="plan-area"></div><div id="daily-area"></div>`;
+  renderPlanInto(document.getElementById("plan-area"),items,startM);
+  renderDailyInto(document.getElementById("daily-area"),daily,startM);
+}
+function loadPlan(){
+  const q=new URLSearchParams(location.search);
+  const id=q.get("id");
+  if(!id){showError("URLが正しくありません。担当のカスタマーサクセスにご確認ください。");return;}
+  document.getElementById("content").innerHTML=`<div class="card"><div class="qtitle">読み込み中…</div></div>`;
+  jsonp({action:"getPlan",id:id})
+    .then(res=>{
+      if(res&&res.ok)render(res.row);
+      else showError((res&&res.error)||"読み込みに失敗しました。");
+    })
+    .catch(e=>showError("通信に失敗しました（"+e.message+"）。インターネット接続をご確認ください。"));
+}
+loadPlan();
+</script>
+</body>
+</html>

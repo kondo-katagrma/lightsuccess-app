@@ -17,11 +17,13 @@ const MASTER_SHEET = "";                 // 法人名リストのシート名。
 const MASTER_COL = 1;                    // 法人名が入っている列番号（A列=1、B列=2 …）
 const TOKEN = "kata-ls-8995de7ce34c";   // ← index.html の CONFIG.TOKEN と一致させること（CS専用・閲覧含む全操作）
 const SUBMIT_TOKEN = "kata-ls-submit-2f91ab7c4e"; // ← respond.html の CONFIG.SUBMIT_TOKEN と一致させること（顧客回答URL専用・新規追加のみ）
-const APP_VERSION = "v3-public-submit";       // デプロイ確認用。pingで返る。
+const VIEW_TOKEN = "kata-ls-view-7c3ae91fd0"; // ← plan.html の CONFIG.VIEW_TOKEN と一致させること（プラン共有URL専用・id指定で1件だけ閲覧）
+const APP_VERSION = "v4-plan-share";       // デプロイ確認用。pingで返る。
 
 // このウェブアプリは「全員（匿名アクセスも含む）」でデプロイする想定。
 // TOKEN（CS用）は list/hojins/save/update など全操作を許可する一方、
-// SUBMIT_TOKEN（顧客回答URL用）は submitSurvey（1行追加のみ）しか許可しない。
+// SUBMIT_TOKEN（顧客回答URL用）は submitSurvey（1行追加のみ）、
+// VIEW_TOKEN（プラン共有URL用）は getPlan（idを知っている1件だけの閲覧）しか許可しない。
 // 顧客用リンクが漏れても他法人のデータ閲覧・改変はできない設計。
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -32,6 +34,9 @@ function doGet(e) {
     if (p.action === "submitSurvey") {
       if (p.token !== SUBMIT_TOKEN) throw new Error("認証トークンが一致しません");
       out = handleSubmitSurvey(p);
+    } else if (p.action === "getPlan") {
+      if (p.token !== VIEW_TOKEN) throw new Error("認証トークンが一致しません");
+      out = handleGetPlan(p);
     } else {
       if (p.token !== TOKEN) throw new Error("認証トークンが一致しません");
       if (p.action === "save")         out = handleSave(p);
@@ -130,6 +135,32 @@ function handleUpdate(p) {
     }
   }
   return { ok: false, error: "該当レコードが見つかりません（id: " + id + "）" };
+}
+
+// プラン共有URL専用：idで指定された1件だけを返す（一覧は返さない）。
+// CSの内部メモ（打合せメモ）・記入者名は法人向けに出さないため含めない。
+function handleGetPlan(p) {
+  const id = p.id;
+  if (!id) throw new Error("idが指定されていません");
+  const sh = getSheet();
+  const values = sh.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][10]) === String(id)) {
+      const r = values[i];
+      if (!r[1]) throw new Error("該当レコードが見つかりません（id: " + id + "）");
+      return {
+        ok: true,
+        row: {
+          hojin:   r[1],
+          date:    r[2],
+          cycle:   r[6],
+          month:   r[7],
+          payload: r[8]
+        }
+      };
+    }
+  }
+  throw new Error("該当レコードが見つかりません（id: " + id + "）");
 }
 
 // 法人名リストのシートを探す：MASTER_SHEET 指定があればそれ、無ければ records 以外の最初のシート
