@@ -122,7 +122,7 @@
   .tbody{padding:10px 14px}
   .titem{padding:8px 0;border-top:1px dashed var(--line)}.titem:first-child{border-top:none}
   .tfunc{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;margin-right:8px;vertical-align:middle}
-  .tfunc.f0{background:var(--mist);color:var(--deep)}.tfunc.f1{background:var(--bluebg);color:var(--blue)}.tfunc.f2{background:var(--purplebg);color:var(--purple)}
+  .tfunc.f0{background:var(--mist);color:var(--deep)}.tfunc.f1{background:var(--bluebg);color:var(--blue)}.tfunc.f2{background:var(--purplebg);color:var(--purple)}.tfunc.f3{background:var(--amberbg);color:var(--amber)}
   .titem .tt{font-size:14px;font-weight:700;display:inline}
   .titem .td{font-size:12px;color:var(--muted);margin-top:3px}
   .titem .ttemp{display:inline-block;margin-top:6px;font-size:11.5px;color:var(--deep);background:var(--mist);border-radius:6px;padding:2px 8px;font-weight:700}
@@ -819,6 +819,16 @@ function buildPlan(st){
   const groups=[];
   items.forEach(it=>{let g=groups.find(g=>g.template===it.template&&g.func===it.func&&g.members.some(mm=>monthDist(mm.m,it.m)<=2));if(g)g.members.push(it);else groups.push({template:it.template,func:it.func,members:[it]});});
   let merged=groups.map(g=>{const best=g.members.slice().sort((a,b)=>a.pri-b.pri||a.m-b.m)[0];return{m:best.m,title:best.title,desc:best.desc,template:g.template,func:g.func,pri:Math.min(...g.members.map(x=>x.pri)),alsoGoal:g.members.some(x=>x.alsoGoal)};});
+  // 人事評価：目的・テーマの選択とは独立に、アンケートで回答された実施月ごとにコマを追加する
+  // （既存のグルーピング処理の対象外にし、選んだ月がまとめられて消えないようにする）
+  const pe=(st.survey&&st.survey.personnelEval)||{};
+  if(pe.has==="実施している"&&Array.isArray(pe.months)&&pe.months.length){
+    const peItems=pe.months.map(mStr=>{
+      const m=parseInt(mStr,10);
+      return m>=1&&m<=12?{m:m,title:"人事評価の実施",desc:"人事評価の実施",template:"",func:"人事評価",pri:99,alsoGoal:false}:null;
+    }).filter(Boolean);
+    merged=merged.concat(peItems);
+  }
   merged.sort((a,b)=>a.m-b.m);
   merged.eff=eff;merged.dropped=focuses.filter(f=>MENDAN_FOCUSES.includes(f)&&f!==top);
   return merged;
@@ -862,7 +872,7 @@ function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 
 /* ===================== 編集できるプランボード ===================== */
 const FUNC_LIST=["面談","自己評価","目標管理"];
-const FUNC_CLASS={"面談":"f0","自己評価":"f1","目標管理":"f2"};
+const FUNC_CLASS={"面談":"f0","自己評価":"f1","目標管理":"f2","人事評価":"f3"};
 const TEMPLATE_BY_FUNC={
   "面談":["【新年度】役割・体制確認","【通常】振り返り・改善","【通常】できたこと・気づき","【通常】相談・要望","【1on1】対話・サポート","【フォロー】成長・サポート","【目標】設定・振り返り","【目標】設定・振り返り（目標計画・管理対応）","【調査】次年度希望調査","【調査】意向調査"],
   "自己評価":["自己評価（各職種30項目）","人権擁護セルフチェック"],
