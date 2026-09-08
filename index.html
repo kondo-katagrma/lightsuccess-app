@@ -200,6 +200,18 @@
 </style>
 </head>
 <body>
+<!-- パスコードゲート（社内配布用・直リンク流入の抑止が目的。本格的な認証ではありません） -->
+<div class="modal show" id="gate">
+  <div class="modalbox" style="max-width:380px">
+    <div class="modalhead"><h3>🔒 パスコード</h3></div>
+    <p class="qhint" style="margin-bottom:12px">社内CSメンバー向けのツールです。共有されたパスコードを入力してください。</p>
+    <input type="password" class="txt" id="gate-pass" placeholder="パスコード" autocomplete="off">
+    <div class="qhint" id="gate-err" style="color:var(--red);min-height:18px;margin-top:6px"></div>
+    <div style="margin-top:10px;text-align:right">
+      <button class="btn primary sm" id="gate-btn">開く</button>
+    </div>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <div class="brand">KatagrMa Customer Success</div>
@@ -256,6 +268,22 @@ const CONFIG={
   TOKEN:"kata-ls-8995de7ce34c"    // Code.gs の TOKEN と必ず一致させる（CS専用・全操作）。
   // 顧客回答URL専用の SUBMIT_TOKEN はこのファイルには置かない（respond.html 側のみに埋め込む）。
 };
+
+/* ===== 社内配布用パスコードゲート ===============================
+   直リンク流入の抑止が目的の簡易ゲートで、本格的な認証ではありません
+   （ページのソースを見ればパスコードは分かります）。respond.html /
+   plan.html には設置しない（法人が使うものなので）。
+   変更する場合はこの値を書き換えて再アップロードしてください。 */
+const PASSCODE_PLAIN="katagrma-ls";
+const SS_GATE="katagrma_ls_gate_ok";
+function openGate(){document.getElementById("gate").classList.remove("show");}
+if(sessionStorage.getItem(SS_GATE)==="1")openGate();
+document.getElementById("gate-btn").onclick=()=>{
+  const v=document.getElementById("gate-pass").value.trim();
+  if(v===PASSCODE_PLAIN){sessionStorage.setItem(SS_GATE,"1");openGate();}
+  else document.getElementById("gate-err").textContent="パスコードが違います。";
+};
+document.getElementById("gate-pass").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("gate-btn").click();});
 
 const MONTHS=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
