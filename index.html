@@ -501,6 +501,13 @@ const SURVEY_STEPS=[
       showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
     {id:"worries",short:"運用の課題・悩み",label:"個人目標の運用について感じている課題・悩み（複数選択可）",type:"chips",opts:["目標が立てっぱなしになってしまう","職員によって立てる目標の質が異なる","フィードバックするタイミングで忘れられてしまってる","何を基準に立ててもらったら良いか分からない","目標の提出に協力してもらえない","職員の負担になっていると感じる","その他"]},
   ]},
+  {key:"personnelEval",title:"人事評価の現状",fields:[
+    {id:"has",short:"実施状況",label:"人事評価を実施していますか",type:"radio",opts:["実施していない","実施している"],required:true},
+    {id:"months",short:"実施月",label:"人事評価は何月に実施していますか（複数選択可）",type:"chips",opts:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+      showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
+    {id:"method",short:"実施方法",label:"人事評価の実施方法をお答えください",type:"select",opts:["","紙で実施","データ形式（Excel・Googleフォームなど）","他社システム","その他"],extraOptsRepeat:["カタグルマ（人財育成）"],
+      showIf:sv=>sv.has==="実施している",requiredIf:sv=>sv.has==="実施している"},
+  ]},
   {key:"training",title:"研修計画・研修報告の現状",fields:[
     {id:"shared",short:"計画の共有",label:"職員の研修計画・報告は施設全体で共有していますか",type:"select",opts:["","共有している","共有していない"]},
     {id:"format",short:"報告書の形式",label:"研修報告書の形式をお答えください",type:"select",opts:["","紙媒体で提出（手書き・Wordなど問わず）","データ形式","他社システム","報告書は書いていない"],extraOptsRepeat:["カタグルマ（人財育成）"]},
